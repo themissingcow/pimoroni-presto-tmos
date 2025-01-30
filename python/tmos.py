@@ -7,10 +7,14 @@ The Missing "OS"
 A basic single-tasking OS for the wonderful Pimoroni Presto, that aims
 to simplify making simple 'page' based apps.
 
+It allows tasks to be scheduled, and run at varying frequencies to avoid
+redundant updates.
+
 This is kept as a single-file module for ease of deployment.
 """
 
 import ntptime
+import time
 
 from plasma import WS2812
 from presto import Presto, Buzzer
@@ -50,13 +54,27 @@ class OS:
     __GLOW_LED_PIN = 33
     __GLOW_LED_COUNT = 7
 
+    class Task:
+        """
+        Represents a task in the task list. Tracks last run, and the
+        requested run interval.
+        """
+
+        def __init__(self, fn, run_interval_us: int) -> None:
+            self.fn = fn
+            self.run_interval_us = run_interval_us
+            # Use None, to avoid and edge cases when values wrap, etc.
+            self.last_run_us = None
+
     #
     # Internal state
     #
-
     __message_handlers: []
     __tasks: []
     __running = False
+
+    __tasks_min_intervals_us = []
+    __tasks_last_run_us = []
 
     def __init__(self, *args, **kwarg) -> None:
         """
@@ -188,7 +206,7 @@ class OS:
             except Exception:  # pylint: disable=broad-except
                 pass
 
-    def add_task(self, fn, index: int = -1):
+    def add_task(self, fn, index: int = -1, update_frequency: int | None = None):
         """
         Adds a task to be run during each cycle of the run loop.
 
@@ -199,12 +217,25 @@ class OS:
         :param fn: A callable to be invoked in the run loop.
         :type fn: Callable[[], None]
         :param index: The index in the list of tasks to insert the task.
+        :param update_frequency: The preferred update rate (Hz) for the
+          task. If omitted, it will be called each tick, otherwise it
+          will be called at the requested frequency (or slower).
         """
-        self.post_message(f"Adding task: {fn} (index {index})", self.MSG_DEBUG)
+        if update_frequency is not None and update_frequency <= 0:
+            raise ValueError(f"update_frequency must be > 0 ({update_frequency})")
+
+        run_interval_us = int(1e6 // update_frequency) if update_frequency else -1
+        task = OS.Task(fn, run_interval_us)
+
         if index < 0:
-            self.__tasks.append(fn)
+            self.__tasks.append(task)
         else:
-            self.__tasks.insert(index, fn)
+            self.__tasks.insert(index, task)
+
+        self.post_message(
+            f"Added task: {fn} (index {index}, interval: {run_interval_us})",
+            self.MSG_DEBUG,
+        )
 
     def remove_task(self, fn):
         """
@@ -215,8 +246,18 @@ class OS:
         :param fn: A previously registered task callable.
         :type fn: Callable[[], None]
         """
-        self.post_message(f"Removing task: {fn}", self.MSG_DEBUG)
-        self.__tasks.remove(fn)
+        self.__tasks = [t for t in self.__tasks if t.fn is not fn]
+        self.post_message(f"Removed task: {fn}", self.MSG_DEBUG)
+
+    def tasks(self) -> [Task]:
+        """
+        Returns the current task list, task properties can be modified,
+        but add_task or remove_task should be used to modify the list
+        itself.
+
+        :returns: A list of tasks as OS.Task instances.
+        """
+        return tuple(self.__tasks)
 
     def __setup_network(self, use_ntp: bool):
         """
@@ -238,8 +279,26 @@ class OS:
         The main run loop function. Called indefinitely from run, whilst
         self.__running is True. Call stop to, well, stop.
 
+        It will attempt to run tasks at their requested frequency, if
+        load is high, they may be late, but they will never be scheduled
+        faster than the indicated rate.
+
         This is responsible for executing all tasks, and any other
         housekeeping required by the OS.
         """
+        time_now_us = time.ticks_us()
         for task in self.__tasks:
-            task()
+            if not self.__task_should_run(task, time_now_us):
+                continue
+            task.last_run_us = time_now_us
+            task.fn()
+
+    @staticmethod
+    def __task_should_run(task: Task, time_now_us: int) -> bool:
+        """
+        Determines if the task should run based on the current time and
+        its last invocation.
+        """
+        if task.last_run_us is None:
+            return True
+        return time.ticks_diff(time_now_us, task.last_run_us) >= task.run_interval_us

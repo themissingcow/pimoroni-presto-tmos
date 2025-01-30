@@ -7,6 +7,8 @@ focus on the specifics of the business logic and advertised
 functionality.
 """
 
+import time
+
 from unittest import mock
 
 import pytest
@@ -322,3 +324,74 @@ class Test_OS_run:
         os_instance.run()
 
         mock_task.assert_called_once()
+
+
+class Test_OS_tasks:
+
+    def test_when_returned_task_modified_then_task_updated(self):
+
+        os_instance = OS()
+        os_instance.add_task(mock.Mock())
+
+        tasks = os_instance.tasks()
+        assert tasks[0].run_interval_us == -1
+
+        new_interval = 1e6 / 10
+        tasks[0].run_interval_us = new_interval
+        assert os_instance.tasks()[0].run_interval_us == new_interval
+
+
+class Test_OS_run_update_frequency:
+
+    def test_when_task_added_with_no_update_frequency_then_interval_is_minus_one(self):
+
+        os_instance = OS()
+
+        mock_task = mock.Mock()
+        os_instance.add_task(mock_task)
+
+        tasks = os_instance.tasks()
+
+        assert len(tasks) == 1
+        assert tasks[0].fn is mock_task
+        assert tasks[0].last_run_us is None
+        assert tasks[0].run_interval_us == -1
+
+    def test_when_task_added_with_valid_update_frequency_then_interval_calculated(self):
+
+        frequency = 4
+        expected_interval_us = 1e6 // 4
+
+        os_instance = OS()
+        mock_task = mock.Mock()
+        os_instance.add_task(mock_task, update_frequency=frequency)
+
+        assert os_instance.tasks()[0].run_interval_us == expected_interval_us
+
+    def test_when_task_has_update_frequency_then_run_respects_interval(self):
+
+        frequency = 10
+        expected_interval_us = int(1e6 // frequency)
+        num_calls = 5
+
+        call_times = []
+
+        def task():
+            call_times.append(time.ticks_us())
+            if len(call_times) == num_calls:
+                os_instance.stop()
+
+        os_instance = OS()
+        os_instance.add_task(task, update_frequency=frequency)
+        assert os_instance.tasks()[0].run_interval_us == expected_interval_us
+
+        os_instance.run()
+
+        # Check the last run entry is close enough to the call time we logged
+        assert abs(os_instance.tasks()[0].last_run_us - call_times[-1]) < 100
+
+        # Check task intervals, allow 10% variation (I'm sure this will
+        # be a constant source of pain)
+        intervals = [b - a for a, b in zip(call_times[:-1], call_times[1:])]
+        average_interval = sum(intervals) // (num_calls - 1)
+        assert round(average_interval / 10.0) == round(expected_interval_us / 10.0)

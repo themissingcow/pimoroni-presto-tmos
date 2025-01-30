@@ -3,6 +3,7 @@ Common test helpers, mostly to aid testing on non-Presto hardware.
 """
 
 import sys
+import time
 
 from unittest import mock
 
@@ -27,6 +28,9 @@ sys.modules["plasma"] = mock_plasma
 mock_ntptime = type(sys)("ntptime")
 mock_ntptime.settime = mock.Mock()
 sys.modules["ntptime"] = mock_ntptime
+
+time.ticks_us = lambda: time.monotonic_ns() // 1000
+time.ticks_diff = lambda a, b: a - b
 
 
 @pytest.fixture
