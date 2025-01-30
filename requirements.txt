@@ -1,1 +1,2 @@
+pimoroni-pico-stubs
 pytest
