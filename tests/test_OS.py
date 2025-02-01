@@ -230,6 +230,27 @@ class Test_OS_messageHandlers:
 
 
 class Test_OS_run:
+
+    def test_when_runloop_ticks_then_touch_poll_is_called(self):
+
+        os_instance = OS()
+
+        touch_poll = mock.Mock()
+        os_instance.presto.touch.poll = touch_poll
+
+        num_calls = 10
+        calls = []
+
+        def task():
+            calls.append(time.ticks_us())
+            if len(calls) == num_calls:
+                os_instance.stop()
+
+        os_instance.add_task(task)
+        os_instance.run()
+
+        assert len(touch_poll.mock_calls) == num_calls
+
     def test_when_multiple_tasks_added_with_no_index_then_called_in_order_added(self):
 
         os_instance = OS()

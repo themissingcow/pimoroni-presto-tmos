@@ -286,6 +286,9 @@ class OS:
         This is responsible for executing all tasks, and any other
         housekeeping required by the OS.
         """
+
+        self.presto.touch.poll()
+
         time_now_us = time.ticks_us()
         for task in self.__tasks:
             if not self.__task_should_run(task, time_now_us):
