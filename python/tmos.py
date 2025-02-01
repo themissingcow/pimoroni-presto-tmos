@@ -269,6 +269,8 @@ class OS:
             self.presto.connect()
             if use_ntp:
                 self.post_message("Setting time")
+                # We seem to get timeouts frequently
+                ntptime.timeout = 10
                 ntptime.settime()
         except Exception as ex:  # pylint: disable=broad-except
             self.post_message(str(ex), self.MSG_FATAL)
