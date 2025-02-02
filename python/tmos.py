@@ -14,6 +14,16 @@ The full frequency run loop implements auto-dimming for the display and
 glow LEDs. Configured through the backlight_manager property.
 
 This is kept as a single-file module for ease of deployment.
+
+The main orchestrator of the runtime is the 'OS' class. This manages
+hardware initialisation, and coordinates task evaluation. It composes
+functionality from other classes to add additional functionality:
+
+- BacklightManager: Timeout-based backlight / glow LED dimming/sleep.
+
+These are added in explicit order in the main run loop (__see tick),
+around user specified tasks to ensure consistent order of operations and
+state management.
 """
 
 import ntptime
