@@ -1,2 +1,4 @@
 pimoroni-pico-stubs
 pytest
+pyright
+pylint
