@@ -14,8 +14,8 @@ os = tmos.OS()
 
 # Use a short timeout for the display to demonstrate screen dimming, set
 # the timeout to 0 to disable.
-os.backlight_manager.display_phase_timeouts.dim = 5
-os.backlight_manager.display_phase_timeouts.sleep = 20
+os.backlight_manager.display_timeouts.dim = 5
+os.backlight_manager.display_timeouts.sleep = 20
 
 WHITE = os.presto.display.create_pen(255, 255, 255)
 BLACK = os.presto.display.create_pen(0, 0, 0)

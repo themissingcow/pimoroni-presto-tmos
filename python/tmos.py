@@ -108,7 +108,7 @@ class BacklightManager:
     display_phase: str | None = None
     display_wake_consumes_touch = True
     display_phase_controls_glow_leds = True
-    display_phase_timeouts: TimeoutSettings
+    display_timeouts: TimeoutSettings
     display_brightnesses: BrightnessSettings
     glow_led_brighnesses: BrightnessSettings
 
@@ -121,7 +121,7 @@ class BacklightManager:
         these will take effect at the next display update.
         """
 
-        self.display_phase_timeouts = self.TimeoutSettings()
+        self.display_timeouts = self.TimeoutSettings()
         self.display_brightnesses = self.BrightnessSettings()
         self.glow_led_brighnesses = self.BrightnessSettings()
 
@@ -184,7 +184,7 @@ class BacklightManager:
         in_initial_update = self.display_phase is None
 
         new_phase = self.__next_display_state(
-            time_now_us, last_interaction_us, self.display_phase_timeouts
+            time_now_us, last_interaction_us, self.display_timeouts
         )
 
         if new_phase == self.display_phase:

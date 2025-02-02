@@ -28,11 +28,11 @@ class Test_BacklightManager_init:
         bm_1 = BacklightManager()
         bm_2 = BacklightManager()
 
-        bm_2.display_phase_timeouts.dim = 70
+        bm_2.display_timeouts.dim = 70
         bm_2.display_brightnesses.dim = 0.0
         bm_2.glow_led_brighnesses.dim = 1.0
 
-        assert bm_2.display_phase_timeouts.dim != bm_1.display_phase_timeouts.dim
+        assert bm_2.display_timeouts.dim != bm_1.display_timeouts.dim
         assert bm_2.display_brightnesses.dim != bm_1.display_brightnesses.dim
         assert bm_2.glow_led_brighnesses.dim != bm_1.glow_led_brighnesses.dim
 
@@ -114,8 +114,8 @@ class Test_BacklightManager_update_display_phase:
 
         bm = BacklightManager()
         bm.presto = mock_presto_module.Presto()
-        bm.display_phase_timeouts.dim = 10
-        bm.display_phase_timeouts.sleep = 20
+        bm.display_timeouts.dim = 10
+        bm.display_timeouts.sleep = 20
         bm.display_brightnesses.on = 0.9
         bm.display_brightnesses.dim = 0.5
         bm.display_brightnesses.sleep = 0.1
@@ -148,8 +148,8 @@ class Test_BacklightManager_update_display_phase:
             (10, 0, 4, bm.DISPLAY_ON),
             (10, 0, 14, bm.DISPLAY_DIM),
         ):
-            bm.display_phase_timeouts.dim = dim_timeout
-            bm.display_phase_timeouts.sleep = sleep_timeout
+            bm.display_timeouts.dim = dim_timeout
+            bm.display_timeouts.sleep = sleep_timeout
 
             last_interaction_us = now_us - (interval * 1e6)
             bm.update_display_phase(now_us, last_interaction_us)
@@ -161,8 +161,8 @@ class Test_BacklightManager_update_display_phase:
         bm.glow_leds = mock.Mock()
         bm.glow_leds.set_rgb = mock.Mock()
         bm.display_phase_controls_glow_leds = True
-        bm.display_phase_timeouts.dim = 10
-        bm.display_phase_timeouts.sleep = 20
+        bm.display_timeouts.dim = 10
+        bm.display_timeouts.sleep = 20
         bm.glow_led_brighnesses.on = 0.9
         bm.glow_led_brighnesses.dim = 0.5
         bm.glow_led_brighnesses.sleep = 0.1
@@ -193,8 +193,8 @@ class Test_BacklightManager_update_display_phase:
         bm.glow_leds = mock.Mock()
         bm.glow_leds.set_rgb = mock.Mock()
         bm.display_phase_controls_glow_leds = False
-        bm.display_phase_timeouts.dim = 10
-        bm.display_phase_timeouts.sleep = 20
+        bm.display_timeouts.dim = 10
+        bm.display_timeouts.sleep = 20
 
         rgb = (100, 100, 100)
         bm.set_glow_leds(*rgb)
@@ -248,8 +248,8 @@ class Test_BacklightManager_tick:
         dim_timeout = 5
         time_now = 1234 * 1e6
 
-        bm.display_phase_timeouts.dim = dim_timeout
-        bm.display_phase_timeouts.sleep = 0
+        bm.display_timeouts.dim = dim_timeout
+        bm.display_timeouts.sleep = 0
 
         # Call tick with a touch (ensure last time and initial state)
         bm.presto.touch.state = True
