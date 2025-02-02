@@ -1,0 +1,4 @@
+AMPY_BAUD=115200
+AMPY_PORT=/dev/cu.usbmodem101
+# Fix for macOS users' "Could not enter raw repl"; try 2.0 and lower from there:
+# AMPY_DELAY=0.5
