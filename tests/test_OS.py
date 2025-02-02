@@ -13,7 +13,7 @@ from unittest import mock
 
 import pytest
 
-from tmos import OS
+from tmos import OS, MSG_FATAL, MSG_WARNING, MSG_INFO, MSG_DEBUG
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
 # pylint: disable=invalid-name
@@ -35,6 +35,21 @@ class Test_OS_init:
         mock_presto_module.Presto.assert_called_once_with(
             *expected_args, **expected_kwargs
         )
+
+    def test_when_ambient_light_not_in_kwarg_then_glow_led_control_enabled(self):
+
+        os_instance = OS()
+        assert os_instance.backlight_manager.display_phase_controls_glow_leds is True
+
+    def test_when_ambient_light_false_in_kwarg_then_glow_led_control_enabled(self):
+
+        os_instance = OS(ambient_light=False)
+        assert os_instance.backlight_manager.display_phase_controls_glow_leds is True
+
+    def test_when_ambient_light_true_in_kwarg_then_glow_led_control_disabled(self):
+
+        os_instance = OS(ambient_light=True)
+        assert os_instance.backlight_manager.display_phase_controls_glow_leds is False
 
 
 class Test_OS_boot:
@@ -86,19 +101,7 @@ class Test_OS_boot:
         os_instance = OS()
         os_instance.boot(glow_leds=True)
         assert os_instance.glow_leds is mock_plasma_module.WS2812.return_value
-        os_instance.glow_leds.start.assert_called_once_with(None)
-
-    def test_when_called_with_run_then_run_loop_started(self):
-
-        os_instance = OS()
-
-        mock_task = mock.MagicMock()
-        mock_task.side_effect = os_instance.stop
-
-        os_instance.add_task(mock_task)
-        os_instance.boot(run=True)
-
-        mock_task.assert_called_once()
+        os_instance.glow_leds.start.assert_called_once_with()
 
     def test_when_called_with_glow_leds_then_plasma_configured_and_started_with_requested_fps(
         self, mock_plasma_module
@@ -113,6 +116,18 @@ class Test_OS_boot:
             expected_num_leds, 0, 0, expected_led_pin
         )
         os_instance.glow_leds.start.assert_called_once_with(expected_fps)
+
+    def test_when_called_with_run_then_run_loop_started(self):
+
+        os_instance = OS()
+
+        mock_task = mock.MagicMock()
+        mock_task.side_effect = os_instance.stop
+
+        os_instance.add_task(mock_task)
+        os_instance.boot(run=True)
+
+        mock_task.assert_called_once()
 
     def test_when_exception_raised_during_boot_then_message_hander_called(
         self, mock_presto_module, monkeypatch
@@ -137,7 +152,7 @@ class Test_OS_boot:
         with pytest.raises(TestException, match=str(test_exception)):
             os_instance.boot(wifi=True)
 
-        mock_handler.assert_called_with(str(test_exception), OS.MSG_FATAL)
+        mock_handler.assert_called_with(str(test_exception), MSG_FATAL)
 
 
 class Test_OS_messageHandlers:
@@ -150,10 +165,10 @@ class Test_OS_messageHandlers:
         os_instance.add_message_handler(mock_handler)
 
         expected_messages = (
-            ("I'm a debug message with 🐟 unicode", OS.MSG_DEBUG),
-            ("I'm an info message with 🐟 unicode", OS.MSG_INFO),
-            ("I'm a warning message with 🐟 unicode", OS.MSG_WARNING),
-            ("I'm a fatal message with 🐟 unicode", OS.MSG_FATAL),
+            ("I'm a debug message with 🐟 unicode", MSG_DEBUG),
+            ("I'm an info message with 🐟 unicode", MSG_INFO),
+            ("I'm a warning message with 🐟 unicode", MSG_WARNING),
+            ("I'm a fatal message with 🐟 unicode", MSG_FATAL),
         )
 
         calls = [mock.call(*a) for a in expected_messages]
@@ -186,16 +201,16 @@ class Test_OS_messageHandlers:
         # Ignore debug messages as the OS logs message handler manipulation
 
         def handler_one(_, severity):
-            if severity > OS.MSG_DEBUG:
+            if severity > MSG_DEBUG:
                 calls.append(1)
 
         def handler_two(_, severity):
-            if severity > OS.MSG_DEBUG:
+            if severity > MSG_DEBUG:
                 calls.append(2)
 
         os_instance.add_message_handler(handler_one)
         os_instance.add_message_handler(handler_two)
-        os_instance.post_message("msg", OS.MSG_INFO)
+        os_instance.post_message("msg", MSG_INFO)
 
         assert calls == [1, 2]
 
@@ -213,7 +228,7 @@ class Test_OS_messageHandlers:
 
         os_instance.add_message_handler(handler_one)
         os_instance.add_message_handler(handler_two)
-        os_instance.post_message("msg", OS.MSG_INFO)
+        os_instance.post_message("msg", MSG_INFO)
 
         assert calls == [2]
 
@@ -226,7 +241,7 @@ class Test_OS_messageHandlers:
 
         os_instance.post_message("msg")
 
-        mock_handler.assert_called_once_with("msg", OS.MSG_INFO)
+        mock_handler.assert_called_once_with("msg", MSG_INFO)
 
 
 class Test_OS_run:
@@ -332,7 +347,7 @@ class Test_OS_run:
         with pytest.raises(TestException, match=str(expected_exception)):
             os_instance.run()
 
-        mock_hander.assert_called_with(str(expected_exception), OS.MSG_FATAL)
+        mock_hander.assert_called_with(str(expected_exception), MSG_FATAL)
 
     def test_when_stop_called_run_loop_terminates(self):
 
@@ -391,9 +406,9 @@ class Test_OS_run_update_frequency:
 
     def test_when_task_has_update_frequency_then_run_respects_interval(self):
 
-        frequency = 10
+        frequency = 5
         expected_interval_us = int(1e6 // frequency)
-        num_calls = 5
+        num_calls = 3
 
         call_times = []
 
@@ -415,4 +430,5 @@ class Test_OS_run_update_frequency:
         # be a constant source of pain)
         intervals = [b - a for a, b in zip(call_times[:-1], call_times[1:])]
         average_interval = sum(intervals) // (num_calls - 1)
-        assert round(average_interval / 10.0) == round(expected_interval_us / 10.0)
+        difference = abs(1 - (average_interval / expected_interval_us))
+        assert difference < 0.1

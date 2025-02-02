@@ -17,6 +17,12 @@ import pytest
 mock_presto = type(sys)("presto")
 mock_presto.Presto = mock.Mock()
 mock_presto.Presto.return_value.connect = mock.Mock()
+mock_presto.Presto.return_value.touch.poll = mock.Mock()
+# Ensure that the state property isn't a Mock, which would evaluate
+# touch True, and make code thing there was perpetually a touch in
+# progress.
+mock_presto.Presto.return_value.touch.state = False
+mock_presto.Presto.return_value.touch.state2 = False
 mock_presto.Buzzer = mock.Mock()
 sys.modules["presto"] = mock_presto
 
@@ -29,8 +35,20 @@ mock_ntptime = type(sys)("ntptime")
 mock_ntptime.settime = mock.Mock()
 sys.modules["ntptime"] = mock_ntptime
 
+mock_picographics = type(sys)("picographics")
+mock_picographics.PicoGraphics = mock.create_autospec(object, instance=False)
+sys.modules["picographics"] = mock_picographics
+
+# Needed for typing, note this is _not_ the object within a presto
+# instance, as that is a generic recursive mock from the Presto
+# definition above.
+mock_touch = type(sys)("touch")
+mock_touch.FT6236 = mock.create_autospec(object, instance=False)
+sys.modules["touch"] = mock_touch
+
 time.ticks_us = lambda: time.monotonic_ns() // 1000
 time.ticks_diff = lambda a, b: a - b
+time.sleep_ms = lambda s: time.sleep(s / 1000)
 
 
 @pytest.fixture
