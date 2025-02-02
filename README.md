@@ -9,6 +9,7 @@ around paged displays of information.
 
 - [x] RTC clock sync (requires WiFI)
 - [x] Glow LED setup
+- [x] Message handers
 - [x] Task execution with adjustable update frequency
 - [x] Timeout based display backlight / Glow LED dimming and sleep
 - [ ] Page-based window manager

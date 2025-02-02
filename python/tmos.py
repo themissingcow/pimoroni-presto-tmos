@@ -17,11 +17,11 @@ This is kept as a single-file module for ease of deployment.
 
 The main orchestrator of the runtime is the 'OS' class. This manages
 hardware initialisation, and coordinates task evaluation. It composes
-functionality from other classes to add additional functionality:
+functionality from other classes to add additional features:
 
 - BacklightManager: Timeout-based backlight / glow LED dimming/sleep.
 
-These are added in explicit order in the main run loop (__see tick),
+These are added in explicit order in the main run loop (see __tick),
 around user specified tasks to ensure consistent order of operations and
 state management.
 """
@@ -385,7 +385,9 @@ class OS:
         logged to the registered message handlers.
 
         The touch system will be polled at the start of each time around
-        the run loop.
+        the run loop. If the backlight_manager is active, then any touches
+        that cause a display wake up will be consumed. Disable by setting
+        backlight_manager.display_wake_consumes_touch to False.
         """
         self.post_message("Starting tasks")
         try:
