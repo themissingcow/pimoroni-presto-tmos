@@ -1,3 +1,4 @@
+adafruit-ampy
 pimoroni-pico-stubs
 pytest
 pyright
