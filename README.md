@@ -1,3 +1,8 @@
+> [!NOTE]
+> This project is entirely independent of the lovely folks at Pimoroni.
+> With their permission, the brand is in the repo name to help make it
+> easier to find, it does not imply any official endorsement.
+
 # TmOS
 
 A basic single-tasking "OS" for the [Pimoroni Presto](https://shop.pimoroni.com/products/presto).
