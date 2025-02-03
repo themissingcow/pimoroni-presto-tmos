@@ -27,7 +27,7 @@ around paged displays of information.
 > [!CAUTION]
 > This project is in its early days and is subject to breaking changes.
 
-1. Upload [tmos.py](python/tmos.py) to your Presto.
+1. Upload [tmos.py](src/tmos.py) to your Presto.
 2. If you want to use WiFI, configure
    [`secrets.py`](https://github.com/pimoroni/pimoroni-pico/blob/main/micropython/examples/pico_wireless/secrets.py) accordingly.
 3. Create an instance of `tmos.OS`.
