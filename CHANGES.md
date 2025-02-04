@@ -1,5 +1,5 @@
-1.0.0aX
-=======
+v1.0.0-alpha.2
+==============
 
 ## Breaking Changes
 
