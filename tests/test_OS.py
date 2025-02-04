@@ -364,6 +364,37 @@ class Test_OS_run:
 
 class Test_OS_tasks:
 
+    def test_when_task_added_then_task_object_returned_referencing_fn(self):
+
+        expected_fn = mock.Mock()
+        os_instance = OS()
+        task = os_instance.add_task(expected_fn)
+        assert isinstance(task, OS.Task)
+        assert task.fn is expected_fn
+
+    def test_when_task_added_then_in_task_list(self):
+
+        os_instance = OS()
+        task = os_instance.add_task(mock.Mock())
+        assert os_instance.tasks() == (task,)
+
+    def test_when_task_removed_with_fn_then_removed_from_task_list(self):
+
+        task_fn = mock.Mock()
+        os_instance = OS()
+        task = os_instance.add_task(task_fn)
+        assert os_instance.tasks() == (task,)
+        os_instance.remove_task(task_fn)
+        assert os_instance.tasks() == tuple()
+
+    def test_when_task_removed_with_task_instance_then_removed_from_task_list(self):
+
+        os_instance = OS()
+        task = os_instance.add_task(mock.Mock())
+        assert os_instance.tasks() == (task,)
+        os_instance.remove_task(task)
+        assert os_instance.tasks() == tuple()
+
     def test_when_returned_task_modified_then_task_updated(self):
 
         os_instance = OS()

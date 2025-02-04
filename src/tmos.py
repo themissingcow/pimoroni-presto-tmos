@@ -447,7 +447,9 @@ class OS:
             except Exception:  # pylint: disable=broad-except
                 pass
 
-    def add_task(self, fn, index: int = -1, update_frequency: int | None = None):
+    def add_task(
+        self, fn, index: int = -1, update_frequency: int | None = None
+    ) -> Task:
         """
         Adds a task to be run during each cycle of the run loop.
 
@@ -461,6 +463,7 @@ class OS:
         :param update_frequency: The preferred update rate (Hz) for the
           task. If omitted, it will be called each tick, otherwise it
           will be called at the requested frequency (or slower).
+        :return: A Task object representing the added task.
         """
         if update_frequency is not None and update_frequency <= 0:
             raise ValueError(f"update_frequency must be > 0 ({update_frequency})")
@@ -478,17 +481,22 @@ class OS:
             MSG_DEBUG,
         )
 
-    def remove_task(self, fn):
+        return task
+
+    def remove_task(self, fn_or_task):
         """
         Removes a previously registered task from the run loop.
 
         An exception will be raised if the task is not in the task list.
 
-        :param fn: A previously registered task callable.
-        :type fn: Callable[[], None]
+        :param fn_or_task: A previously registered task callable.
+        :type fn_or_task: Callable[[], None] or OS.Task
         """
-        self.__tasks = [t for t in self.__tasks if t.fn is not fn]
-        self.post_message(f"Removed task: {fn}", MSG_DEBUG)
+        if isinstance(fn_or_task, self.Task):
+            self.__tasks.remove(fn_or_task)
+        else:
+            self.__tasks = [t for t in self.__tasks if t.fn is not fn_or_task]
+        self.post_message(f"Removed task: {fn_or_task}", MSG_DEBUG)
 
     def tasks(self) -> [Task]:
         """
