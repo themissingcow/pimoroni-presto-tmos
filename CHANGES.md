@@ -1,6 +1,14 @@
 1.0.0aX
 =======
 
+## Breaking Changes
+
+- Renamed `Task` properties:
+  - `last_run_us` -> `last_execution_us`
+  - `run_interval_us` -> `execution_interval_us`
+- Renamed the `OS.add_task` `update_frequency` kwarg to
+  `execution_frequency`.
+
 ## New Features
 
 - Added an `active` property to `OS.Task` instances that controls

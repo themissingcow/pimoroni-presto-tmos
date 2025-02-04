@@ -42,16 +42,16 @@ def clock():
     )
 
     # Show the update time, so its easier to see the effect of
-    # update_frequency when the task is registered.
+    # execution_frequency when the task is registered.
     display.text(f"Update @ {time.ticks_ms()}", 10, 30)
 
     os.presto.update()
 
 
 # Add out function to display the time as a task, so it will be called
-# each time the run loop runs. We specify an update_frequency of 1 so it
-# will only be invoked every second, to save unnecessary updates.
-os.add_task(clock, update_frequency=1)
+# each time the run loop runs. We specify an execution_frequency of 1 so
+# it will only be invoked every second, to save unnecessary updates.
+os.add_task(clock, execution_frequency=1)
 
 # Enable WiFI and NTP so we have the correct time, start the run loop as
 # everything else is configured.

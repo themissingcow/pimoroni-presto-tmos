@@ -422,16 +422,18 @@ class Test_OS_tasks:
         os_instance.add_task(mock.Mock())
 
         tasks = os_instance.tasks()
-        assert tasks[0].run_interval_us == -1
+        assert tasks[0].execution_interval_us == -1
 
         new_interval = 1e6 / 10
-        tasks[0].run_interval_us = new_interval
-        assert os_instance.tasks()[0].run_interval_us == new_interval
+        tasks[0].execution_interval_us = new_interval
+        assert os_instance.tasks()[0].execution_interval_us == new_interval
 
 
-class Test_OS_run_update_frequency:
+class Test_OS_run_execution_frequency:
 
-    def test_when_task_added_with_no_update_frequency_then_interval_is_minus_one(self):
+    def test_when_task_added_with_no_execution_frequency_then_interval_is_minus_one(
+        self,
+    ):
 
         os_instance = OS()
 
@@ -442,21 +444,23 @@ class Test_OS_run_update_frequency:
 
         assert len(tasks) == 1
         assert tasks[0].fn is mock_task
-        assert tasks[0].last_run_us is None
-        assert tasks[0].run_interval_us == -1
+        assert tasks[0].last_execution_us is None
+        assert tasks[0].execution_interval_us == -1
 
-    def test_when_task_added_with_valid_update_frequency_then_interval_calculated(self):
+    def test_when_task_added_with_valid_execution_frequency_then_interval_calculated(
+        self,
+    ):
 
         frequency = 4
         expected_interval_us = 1e6 // 4
 
         os_instance = OS()
         mock_task = mock.Mock()
-        os_instance.add_task(mock_task, update_frequency=frequency)
+        os_instance.add_task(mock_task, execution_frequency=frequency)
 
-        assert os_instance.tasks()[0].run_interval_us == expected_interval_us
+        assert os_instance.tasks()[0].execution_interval_us == expected_interval_us
 
-    def test_when_task_has_update_frequency_then_run_respects_interval(self):
+    def test_when_task_has_execution_frequency_then_run_respects_interval(self):
 
         frequency = 5
         expected_interval_us = int(1e6 // frequency)
@@ -470,13 +474,13 @@ class Test_OS_run_update_frequency:
                 os_instance.stop()
 
         os_instance = OS()
-        os_instance.add_task(task, update_frequency=frequency)
-        assert os_instance.tasks()[0].run_interval_us == expected_interval_us
+        os_instance.add_task(task, execution_frequency=frequency)
+        assert os_instance.tasks()[0].execution_interval_us == expected_interval_us
 
         os_instance.run()
 
         # Check the last run entry is close enough to the call time we logged
-        assert abs(os_instance.tasks()[0].last_run_us - call_times[-1]) < 100
+        assert abs(os_instance.tasks()[0].last_execution_us - call_times[-1]) < 100
 
         # Check task intervals, allow 10% variation (I'm sure this will
         # be a constant source of pain)

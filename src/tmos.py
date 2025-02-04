@@ -274,15 +274,15 @@ class OS:
 
         fn: "Callable[[],  None]"
         active: bool
-        run_interval_us: int
-        last_run_us: int | None
+        execution_interval_us: int
+        last_execution_us: int | None
 
-        def __init__(self, fn, run_interval_us: int) -> None:
+        def __init__(self, fn, execute_interval_us: int) -> None:
             self.active = True
             self.fn = fn
-            self.run_interval_us = run_interval_us
+            self.execution_interval_us = execute_interval_us
             # Use None, to avoid and edge cases when values wrap, etc.
-            self.last_run_us = None
+            self.last_execution_us = None
 
     #
     # Internal state
@@ -291,9 +291,6 @@ class OS:
     __message_handlers: []
     __tasks: []
     __running = False
-
-    __tasks_min_intervals_us = []
-    __tasks_last_run_us = []
 
     def __init__(self, *args, **kwarg) -> None:
         """
@@ -454,7 +451,7 @@ class OS:
                 pass
 
     def add_task(
-        self, fn, index: int = -1, update_frequency: int | None = None
+        self, fn, index: int = -1, execution_frequency: int | None = None
     ) -> Task:
         """
         Adds a task to be run during each cycle of the run loop.
@@ -466,16 +463,16 @@ class OS:
         :param fn: A callable to be invoked in the run loop.
         :type fn: Callable[[], None]
         :param index: The index in the list of tasks to insert the task.
-        :param update_frequency: The preferred update rate (Hz) for the
+        :param execution_frequency: The preferred update rate (Hz) for the
           task. If omitted, it will be called each tick, otherwise it
           will be called at the requested frequency (or slower).
         :return: A Task object representing the added task.
         """
-        if update_frequency is not None and update_frequency <= 0:
-            raise ValueError(f"update_frequency must be > 0 ({update_frequency})")
+        if execution_frequency is not None and execution_frequency <= 0:
+            raise ValueError(f"execution_frequency must be > 0 ({execution_frequency})")
 
-        run_interval_us = int(1e6 // update_frequency) if update_frequency else -1
-        task = OS.Task(fn, run_interval_us)
+        execute_interval_us = int(1e6 // execution_frequency) if execution_frequency else -1
+        task = OS.Task(fn, execute_interval_us)
 
         if index < 0:
             self.__tasks.append(task)
@@ -483,7 +480,7 @@ class OS:
             self.__tasks.insert(index, task)
 
         self.post_message(
-            f"Added task: {fn} (index {index}, interval: {run_interval_us})",
+            f"Added task: {fn} (index {index}, interval: {execute_interval_us})",
             MSG_DEBUG,
         )
 
@@ -553,9 +550,9 @@ class OS:
         self.backlight_manager.tick(time_now_us)
 
         # Run the users tasks
-        self.__run_tasks(time_now_us)
+        self.__execute_tasks(time_now_us)
 
-    def __run_tasks(self, time_now_us: int):
+    def __execute_tasks(self, time_now_us: int):
         """
         Runs any tasks that are pending, based on their update
         frequency.
@@ -563,7 +560,7 @@ class OS:
         for task in self.__tasks:
             if not self.__task_should_run(task, time_now_us):
                 continue
-            task.last_run_us = time_now_us
+            task.last_execution_us = time_now_us
             task.fn()
 
     @staticmethod
@@ -574,6 +571,9 @@ class OS:
         """
         if not task.active:
             return False
-        if task.last_run_us is None:
+        if task.last_execution_us is None:
             return True
-        return time.ticks_diff(time_now_us, task.last_run_us) >= task.run_interval_us
+        return (
+            time.ticks_diff(time_now_us, task.last_execution_us)
+            >= task.execution_interval_us
+        )

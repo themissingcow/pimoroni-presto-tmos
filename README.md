@@ -67,7 +67,7 @@ def clock():
 
     os.presto.update()
 
-os.add_task(clock, update_frequency=1)
+os.add_task(clock, execution_frequency=1)
 os.boot(wifi=True, use_ntp=True, run=True)
 ```
 
