@@ -272,7 +272,13 @@ class OS:
         requested run interval.
         """
 
+        fn: "Callable[[],  None]"
+        active: bool
+        run_interval_us: int
+        last_run_us: int | None
+
         def __init__(self, fn, run_interval_us: int) -> None:
+            self.active = True
             self.fn = fn
             self.run_interval_us = run_interval_us
             # Use None, to avoid and edge cases when values wrap, etc.
@@ -566,6 +572,8 @@ class OS:
         Determines if the task should run based on the current time and
         its last invocation.
         """
+        if not task.active:
+            return False
         if task.last_run_us is None:
             return True
         return time.ticks_diff(time_now_us, task.last_run_us) >= task.run_interval_us

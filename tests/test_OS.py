@@ -327,6 +327,27 @@ class Test_OS_run:
 
         assert calls == [2]
 
+    def test_when_task_not_active_then_not_called(self):
+
+        os_instance = OS()
+
+        calls = []
+
+        def task_one():
+            calls.append(1)
+
+        def task_two():
+            calls.append(2)
+            os_instance.stop()
+
+        t1 = os_instance.add_task(task_one)
+        os_instance.add_task(task_two)
+        t1.active = False
+
+        os_instance.run()
+
+        assert calls == [2]
+
     def test_when_task_raises_exception_then_message_posted_and_exception_raised(self):
 
         os_instance = OS()
