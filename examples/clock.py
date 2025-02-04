@@ -42,15 +42,20 @@ def clock():
     )
 
     # Show the update time, so its easier to see the effect of
-    # execution_frequency when the task is registered.
+    # execution_frequency and touch_forces_execution when the task is
+    # registered.
     display.text(f"Update @ {time.ticks_ms()}", 10, 30)
 
     os.presto.update()
 
 
-# Add out function to display the time as a task, so it will be called
+# Add our function to display the time as a task, so it will be called
 # each time the run loop runs. We specify an execution_frequency of 1 so
 # it will only be invoked every second, to save unnecessary updates.
+# add_task defaults to touch_forces_execution = True, which will ensure
+# the task runs immediately in the event of a touch, regardless of the
+# slower call frequency. This allows a page to remain responsive to
+# touch events if required.
 os.add_task(clock, execution_frequency=1)
 
 # Enable WiFI and NTP so we have the correct time, start the run loop as

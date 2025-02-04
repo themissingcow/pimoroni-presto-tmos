@@ -16,6 +16,7 @@ around paged displays of information.
 - [x] Glow LED setup
 - [x] Message handers
 - [x] Task execution with adjustable update frequency
+  - [x] Touches cause immediate updates (optional)
 - [x] Timeout based display backlight / Glow LED dimming and sleep
 - [ ] Page-based window manager
   - [ ] Tabbed UI for page switching

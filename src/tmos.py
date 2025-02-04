@@ -8,7 +8,8 @@ A basic single-tasking OS for the wonderful Pimoroni Presto, that aims
 to simplify making simple 'page' based apps.
 
 It allows tasks to be scheduled, and run at varying frequencies to avoid
-redundant updates.
+redundant updates. Touches can be set to cause immediate scheduling of
+lower-frequency tasks to ensure interactivity is maintained.
 
 The full frequency run loop implements auto-dimming for the display and
 glow LEDs. Configured through the backlight_manager property.
@@ -276,13 +277,17 @@ class OS:
         active: bool
         execution_interval_us: int
         last_execution_us: int | None
+        touch_forces_execution: bool
 
-        def __init__(self, fn, execute_interval_us: int) -> None:
+        def __init__(
+            self, fn, execute_interval_us: int, touch_forces_execution: bool = True
+        ) -> None:
             self.active = True
             self.fn = fn
             self.execution_interval_us = execute_interval_us
             # Use None, to avoid and edge cases when values wrap, etc.
             self.last_execution_us = None
+            self.touch_forces_execution = touch_forces_execution
 
     #
     # Internal state
@@ -391,6 +396,10 @@ class OS:
         the run loop. If the backlight_manager is active, then any touches
         that cause a display wake up will be consumed. Disable by setting
         backlight_manager.display_wake_consumes_touch to False.
+
+        If a task's touch_forces_execution property is True, then it's
+        execution will be immediately scheduled regardless of any
+        preferred execution_frequency.
         """
         self.post_message("Starting tasks")
         try:
@@ -451,7 +460,11 @@ class OS:
                 pass
 
     def add_task(
-        self, fn, index: int = -1, execution_frequency: int | None = None
+        self,
+        fn,
+        index: int = -1,
+        execution_frequency: int | None = None,
+        touch_forces_execution: bool = True,
     ) -> Task:
         """
         Adds a task to be run during each cycle of the run loop.
@@ -466,13 +479,19 @@ class OS:
         :param execution_frequency: The preferred update rate (Hz) for the
           task. If omitted, it will be called each tick, otherwise it
           will be called at the requested frequency (or slower).
+        :parm touch_forces_execution: When True, the task will be
+          immediately be executed when a touch is active in the run
+          loop. this allows slow-updating pages to remain responsive to
+          interactions.
         :return: A Task object representing the added task.
         """
         if execution_frequency is not None and execution_frequency <= 0:
             raise ValueError(f"execution_frequency must be > 0 ({execution_frequency})")
 
-        execute_interval_us = int(1e6 // execution_frequency) if execution_frequency else -1
-        task = OS.Task(fn, execute_interval_us)
+        execute_interval_us = (
+            int(1e6 // execution_frequency) if execution_frequency else -1
+        )
+        task = OS.Task(fn, execute_interval_us, touch_forces_execution)
 
         if index < 0:
             self.__tasks.append(task)
@@ -554,23 +573,25 @@ class OS:
 
     def __execute_tasks(self, time_now_us: int):
         """
-        Runs any tasks that are pending, based on their update
-        frequency.
+        Runs any tasks that are pending, based on their execution
+        frequency and other triggers.
         """
         for task in self.__tasks:
-            if not self.__task_should_run(task, time_now_us):
+            if not self.__task_should_run(task, time_now_us, self.presto.touch.state):
                 continue
             task.last_execution_us = time_now_us
             task.fn()
 
     @staticmethod
-    def __task_should_run(task: Task, time_now_us: int) -> bool:
+    def __task_should_run(task: Task, time_now_us: int, touch_active: bool) -> bool:
         """
         Determines if the task should run based on the current time and
         its last invocation.
         """
         if not task.active:
             return False
+        if touch_active and task.touch_forces_execution:
+            return True
         if task.last_execution_us is None:
             return True
         return (

@@ -438,14 +438,11 @@ class Test_OS_run_execution_frequency:
         os_instance = OS()
 
         mock_task = mock.Mock()
-        os_instance.add_task(mock_task)
+        task = os_instance.add_task(mock_task)
 
-        tasks = os_instance.tasks()
-
-        assert len(tasks) == 1
-        assert tasks[0].fn is mock_task
-        assert tasks[0].last_execution_us is None
-        assert tasks[0].execution_interval_us == -1
+        assert task.fn is mock_task
+        assert task.last_execution_us is None
+        assert task.execution_interval_us == -1
 
     def test_when_task_added_with_valid_execution_frequency_then_interval_calculated(
         self,
@@ -456,11 +453,23 @@ class Test_OS_run_execution_frequency:
 
         os_instance = OS()
         mock_task = mock.Mock()
-        os_instance.add_task(mock_task, execution_frequency=frequency)
+        task = os_instance.add_task(mock_task, execution_frequency=frequency)
 
-        assert os_instance.tasks()[0].execution_interval_us == expected_interval_us
+        assert task.execution_interval_us == expected_interval_us
 
-    def test_when_task_has_execution_frequency_then_run_respects_interval(self):
+    def test_when_task_added_with_invalid_execution_frequence_then_ValueError_raised(
+        self,
+    ):
+
+        os_instance = OS()
+
+        for invalid_hz in (-12.4, -1, 0):
+            with pytest.raises(ValueError):
+                os_instance.add_task(mock.Mock(), execution_frequency=invalid_hz)
+
+    def test_when_task_has_execution_frequency_and_ignores_touch_then_run_respects_interval(
+        self,
+    ):
 
         frequency = 5
         expected_interval_us = int(1e6 // frequency)
@@ -474,17 +483,79 @@ class Test_OS_run_execution_frequency:
                 os_instance.stop()
 
         os_instance = OS()
-        os_instance.add_task(task, execution_frequency=frequency)
-        assert os_instance.tasks()[0].execution_interval_us == expected_interval_us
+
+        # simulate a touch
+        os_instance.presto.touch.state = True
+
+        task = os_instance.add_task(
+            task, execution_frequency=frequency, touch_forces_execution=False
+        )
+        assert task.execution_interval_us == expected_interval_us
+        assert task.touch_forces_execution is False
 
         os_instance.run()
 
         # Check the last run entry is close enough to the call time we logged
-        assert abs(os_instance.tasks()[0].last_execution_us - call_times[-1]) < 100
+        assert abs(task.last_execution_us - call_times[-1]) < 100
+        # Check call intervals are close enough
+        self.__check_intervals(call_times, expected_interval_us, 0.1)
 
-        # Check task intervals, allow 10% variation (I'm sure this will
-        # be a constant source of pain)
+        os_instance.presto.touch.state = False
+
+    def test_when_task_executes_on_touch_then_touch_affects_interval(self):
+
+        frequency = 5
+        expected_interval_us = int(1e6 // frequency)
+        max_expected_touch_interval_us = 1e6 // (5 * frequency)
+        num_calls = 6
+        num_calls_in_touch = 3
+
+        call_times = []
+
+        os_instance = OS()
+
+        def task():
+            call_times.append(time.ticks_us())
+            if len(call_times) == num_calls_in_touch:
+                os_instance.presto.touch.state = False
+            if len(call_times) == num_calls:
+                os_instance.stop()
+
+        task = os_instance.add_task(
+            task, execution_frequency=frequency, touch_forces_execution=True
+        )
+
+        assert task.execution_interval_us == expected_interval_us
+        assert task.touch_forces_execution
+
+        # Simulate a touch
+        os_instance.presto.touch.state = True
+
+        os_instance.run()
+
+        # Check the last run entry is close enough to the call time we logged
+        assert abs(task.last_execution_us - call_times[-1]) < 100
+
+        # Check touch intervals are suitably short
+        with_touch = call_times[:num_calls_in_touch]
+        self.__check_intervals(with_touch, max_expected_touch_interval_us)
+
+        # Check non-touch intervals are as expected from frequency
+        without_touch = call_times[num_calls_in_touch - 1 :]
+        self.__check_intervals(without_touch, expected_interval_us, 0.1)
+
+    def __check_intervals(
+        self, call_times: [int], expected_interval: int, tolerance: float = None
+    ):
+        """
+        Checks the intervals between call_times are less than the
+        expected_interval, or if a tolerance supplied (% as 0-1), then
+        within that range.
+        """
         intervals = [b - a for a, b in zip(call_times[:-1], call_times[1:])]
-        average_interval = sum(intervals) // (num_calls - 1)
-        difference = abs(1 - (average_interval / expected_interval_us))
-        assert difference < 0.1
+        average_interval = sum(intervals) // (len(call_times) - 1)
+        if tolerance is not None:
+            difference = abs(1 - (average_interval / expected_interval))
+            assert difference < tolerance
+        else:
+            assert average_interval < expected_interval

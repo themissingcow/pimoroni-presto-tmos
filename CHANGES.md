@@ -11,6 +11,10 @@
 
 ## New Features
 
+- Added a `touch_forces_execution` kwarg to `OS.add_task` and the
+  corresponding `OS.Task` property. This causes the run loop to
+  immediately execute the task when a touch is active, regardless of its
+  specified `execution_frequency`.
 - Added an `active` property to `OS.Task` instances that controls
   whether the task should be executed by the run loop. This allows
   a task to be disabled, without removing it.
