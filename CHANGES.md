@@ -5,6 +5,11 @@ v1.0.0-alpha.X
 
 - Added `OS.update_display` to update the screen without a touch poll.
 
+## Bug Fixes
+
+- Fixed intermittent screen wakes caused by the display state clock
+  wrapping around.
+
 v1.0.0-alpha.2
 ==============
 

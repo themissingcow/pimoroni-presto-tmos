@@ -118,7 +118,7 @@ class BacklightManager:
     glow_led_brighnesses: BrightnessSettings
 
     __requested_glow_led_rgb: tuple | None = None
-    __last_interaction_us: int | None = None
+    __last_interaction_s: int | None = None
 
     def __init__(self):
         """
@@ -156,15 +156,15 @@ class BacklightManager:
         for i in range(self.num_leds):
             self.glow_leds.set_rgb(i, *rgb)
 
-    def tick(self, time_now_us: int):
+    def tick(self, time_now_s: int):
 
         if not self.presto:
             return
 
-        if self.__last_interaction_us is None or self.presto.touch.state:
-            self.__last_interaction_us = time_now_us
+        if self.__last_interaction_s is None or self.presto.touch.state:
+            self.__last_interaction_s = time_now_s
 
-        changed = self.update_display_phase(time_now_us, self.__last_interaction_us)
+        changed = self.update_display_phase(time_now_s, self.__last_interaction_s)
         if changed and self.display_wake_consumes_touch:
             # Wait for the touch to end so that the current page won't
             # see it when its tick is called.
@@ -172,7 +172,7 @@ class BacklightManager:
                 time.sleep_ms(5)
                 self.presto.touch.poll()
 
-    def update_display_phase(self, time_now_us: int, last_interaction_us: int) -> bool:
+    def update_display_phase(self, time_now_s: int, last_interaction_s: int) -> bool:
         """
         Updates the display phase based on the current time the last
         interaction time.
@@ -189,7 +189,7 @@ class BacklightManager:
         in_initial_update = self.display_phase is None
 
         new_phase = self.__next_display_state(
-            time_now_us, last_interaction_us, self.display_timeouts
+            time_now_s, last_interaction_s, self.display_timeouts
         )
 
         if new_phase == self.display_phase:
@@ -214,7 +214,7 @@ class BacklightManager:
 
     @staticmethod
     def __next_display_state(
-        time_now_us: int, last_interaction_us: int, timeouts: TimeoutSettings
+        time_now_s: int, last_interaction_s: int, timeouts: TimeoutSettings
     ):
         """
         Calculates the updated display sate phase There are three
@@ -224,7 +224,7 @@ class BacklightManager:
         """
         new_display_phase = BacklightManager.DISPLAY_ON
 
-        delta_s = time.ticks_diff(time_now_us, last_interaction_us) // int(1e6)
+        delta_s = time_now_s - last_interaction_s
 
         for phase in (BacklightManager.DISPLAY_SLEEP, BacklightManager.DISPLAY_DIM):
 
@@ -577,24 +577,25 @@ class OS:
 
         self.presto.touch.poll()
 
-        time_now_us = time.ticks_us()
+        time_us = time.ticks_us()
+        time_now_s =time.time()
 
         # Update the display before anything else, so we can consume the
         # touch event if we need to.
-        self.backlight_manager.tick(time_now_us)
+        self.backlight_manager.tick(time_now_s)
 
         # Run the users tasks
-        self.__execute_tasks(time_now_us)
+        self.__execute_tasks(time_us)
 
-    def __execute_tasks(self, time_now_us: int):
+    def __execute_tasks(self, time_us: int):
         """
         Runs any tasks that are pending, based on their execution
         frequency and other triggers.
         """
         for task in self.__tasks:
-            if not self.__task_should_run(task, time_now_us, self.presto.touch.state):
+            if not self.__task_should_run(task, time_us, self.presto.touch.state):
                 continue
-            task.last_execution_us = time_now_us
+            task.last_execution_us = time_us
             task.fn()
 
     @staticmethod

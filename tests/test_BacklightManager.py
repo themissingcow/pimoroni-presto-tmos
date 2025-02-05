@@ -120,7 +120,7 @@ class Test_BacklightManager_update_display_phase:
         bm.display_brightnesses.dim = 0.5
         bm.display_brightnesses.sleep = 0.1
 
-        now_us = 1234 * 1e6
+        now_s = 1234
         for interval, expected_phase in (
             (4, bm.DISPLAY_ON),
             (14, bm.DISPLAY_DIM),
@@ -129,8 +129,8 @@ class Test_BacklightManager_update_display_phase:
 
             bm.presto.set_backlight.reset_mock()
 
-            last_interaction_us = now_us - (interval * 1e6)
-            bm.update_display_phase(now_us, last_interaction_us)
+            last_interaction_s = now_s - interval
+            bm.update_display_phase(now_s, last_interaction_s)
             assert bm.display_phase == expected_phase
 
             bm.presto.set_backlight.assert_called_with(
@@ -141,7 +141,7 @@ class Test_BacklightManager_update_display_phase:
 
         bm = BacklightManager()
 
-        now_us = 1234 * 1e6
+        now_s = 1234
         for dim_timeout, sleep_timeout, interval, expected_phase in (
             (0, 10, 4, bm.DISPLAY_ON),
             (0, 10, 14, bm.DISPLAY_SLEEP),
@@ -151,8 +151,8 @@ class Test_BacklightManager_update_display_phase:
             bm.display_timeouts.dim = dim_timeout
             bm.display_timeouts.sleep = sleep_timeout
 
-            last_interaction_us = now_us - (interval * 1e6)
-            bm.update_display_phase(now_us, last_interaction_us)
+            last_interaction_s = now_s - interval
+            bm.update_display_phase(now_s, last_interaction_s)
             assert bm.display_phase == expected_phase
 
     def test_when_glow_led_control_enabled_then_leds_updated(self):
@@ -170,7 +170,7 @@ class Test_BacklightManager_update_display_phase:
         rgb = (100, 100, 100)
         bm.set_glow_leds(*rgb)
 
-        now_us = 1234 * 1e6
+        now_s = 1234
         for interval, expected_phase in (
             (4, bm.DISPLAY_ON),
             (14, bm.DISPLAY_DIM),
@@ -179,8 +179,8 @@ class Test_BacklightManager_update_display_phase:
 
             bm.glow_leds.set_rgb.reset_mock()
 
-            last_interaction_us = now_us - (interval * 1e6)
-            bm.update_display_phase(now_us, last_interaction_us)
+            last_interaction_s = now_s - interval
+            bm.update_display_phase(now_s, last_interaction_s)
             assert bm.display_phase == expected_phase
 
             phase_brightness = bm.glow_led_brighnesses.for_phase(expected_phase)
@@ -199,7 +199,7 @@ class Test_BacklightManager_update_display_phase:
         rgb = (100, 100, 100)
         bm.set_glow_leds(*rgb)
 
-        now_us = 1234 * 1e6
+        now_s = 1234
         for interval, expected_phase in (
             (4, bm.DISPLAY_ON),
             (14, bm.DISPLAY_DIM),
@@ -208,8 +208,8 @@ class Test_BacklightManager_update_display_phase:
 
             bm.glow_leds.set_rgb.reset_mock()
 
-            last_interaction_us = now_us - (interval * 1e6)
-            bm.update_display_phase(now_us, last_interaction_us)
+            last_interaction_s = now_s - interval
+            bm.update_display_phase(now_s, last_interaction_s)
             assert bm.display_phase == expected_phase
             bm.glow_leds.set_rgb.assert_not_called()
 
