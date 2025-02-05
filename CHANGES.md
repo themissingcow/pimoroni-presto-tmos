@@ -1,3 +1,10 @@
+v1.0.0-alpha.X
+==============
+
+## New Features
+
+- Added `OS.update_display` to update the screen without a touch poll.
+
 v1.0.0-alpha.2
 ==============
 

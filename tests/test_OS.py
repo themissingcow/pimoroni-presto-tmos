@@ -13,7 +13,7 @@ from unittest import mock
 
 import pytest
 
-from tmos import OS, MSG_FATAL, MSG_WARNING, MSG_INFO, MSG_DEBUG
+from tmos import OS, Region, MSG_FATAL, MSG_WARNING, MSG_INFO, MSG_DEBUG
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
 # pylint: disable=invalid-name
@@ -559,3 +559,30 @@ class Test_OS_run_execution_frequency:
             assert difference < tolerance
         else:
             assert average_interval < expected_interval
+
+
+class Test_OS_update_display:
+
+    def test_when_called_without_region_then_update_called(self):
+
+        os_instance = OS()
+        os_instance.presto.touch.state = True
+        os_instance.update_display()
+        os_instance.presto.presto.update.assert_called_with(os_instance.presto.display)
+        assert os_instance.presto.touch.state
+        os_instance.presto.touch.state = False
+
+
+    def test_when_called_with_region_then_partial_update_called(self):
+
+        expected_region = Region(1, 2, 3, 4)
+
+        os_instance = OS()
+        os_instance.presto.touch.state = True
+        os_instance.update_display(expected_region)
+        os_instance.presto.presto.partial_update.assert_called_once_with(
+            os_instance.presto.display, *expected_region
+        )
+
+        assert os_instance.presto.touch.state
+        os_instance.presto.touch.state = False

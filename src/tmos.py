@@ -26,9 +26,11 @@ These are added in explicit order in the main run loop (see __tick),
 around user specified tasks to ensure consistent order of operations and
 state management.
 """
+import time
+
+from collections import namedtuple
 
 import ntptime
-import time
 
 from plasma import WS2812
 import plasma
@@ -53,6 +55,8 @@ MSG_WARNING = 2
 MSG_FATAL = 3
 
 MSG_SEVERITY_NAMES = ("DEBUG", "INFO", "WARNING", "FATAL")
+
+Region = namedtuple("Region", ("x", "y", "width", "height"))
 
 
 class BacklightManager:
@@ -416,6 +420,17 @@ class OS:
         Stops the runloop, the run function will then return.
         """
         self.__running = False
+
+    def update_display(self, region: Region | None = None):
+        """
+        Updates the display only (no touch poll)
+
+        :param region: If specified, only this region will be updated
+        """
+        if region:
+            self.presto.presto.partial_update(self.presto.display, *region)
+        else:
+            self.presto.presto.update(self.presto.display)
 
     def add_message_handler(self, handler):
         """
