@@ -458,6 +458,12 @@ class OS:
         self.__message_handlers.remove(handler)
         self.post_message(f"Removed message handler: {handler}", MSG_DEBUG)
 
+    def message_handlers(self):
+        """
+        Returns a list of the currently registered message handlers.
+        """
+        return tuple(self.__message_handlers)
+
     def post_message(self, msg: str, severity: int = MSG_INFO):
         """
         Post a message to any registered handlers.

@@ -4,6 +4,8 @@ v1.0.0-alpha.X
 ## New Features
 
 - Added `OS.update_display` to update the screen without a touch poll.
+- Added `OS.message_handlers` method to retrieve the currently
+  registered handlers.
 
 ## Bug Fixes
 

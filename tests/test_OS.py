@@ -164,6 +164,8 @@ class Test_OS_messageHandlers:
         mock_handler = mock.MagicMock()
         os_instance.add_message_handler(mock_handler)
 
+        assert mock_handler in os_instance.message_handlers()
+
         expected_messages = (
             ("I'm a debug message with 🐟 unicode", MSG_DEBUG),
             ("I'm an info message with 🐟 unicode", MSG_INFO),
@@ -189,6 +191,8 @@ class Test_OS_messageHandlers:
         mock_handler.assert_called_once()
 
         os_instance.remove_message_handler(mock_handler)
+        assert mock_handler not in os_instance.message_handlers()
+
         os_instance.post_message("msg2")
         mock_handler.assert_called_once()
 
@@ -208,10 +212,13 @@ class Test_OS_messageHandlers:
             if severity > MSG_DEBUG:
                 calls.append(2)
 
+        expected_handlers = (*os_instance.message_handlers(), handler_one, handler_two)
+
         os_instance.add_message_handler(handler_one)
         os_instance.add_message_handler(handler_two)
         os_instance.post_message("msg", MSG_INFO)
 
+        assert os_instance.message_handlers() == expected_handlers
         assert calls == [1, 2]
 
     def test_when_handler_raises_then_no_exception_and_other_handlers_called(self):
