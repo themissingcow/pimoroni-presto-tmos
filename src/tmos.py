@@ -278,7 +278,6 @@ class OS:
         """
 
         fn: "Callable[[],  None]"
-        active: bool
         execution_interval_us: int
         last_execution_us: int | None
         touch_forces_execution: bool
@@ -290,12 +289,30 @@ class OS:
             touch_forces_execution: bool = True,
             active: bool = True,
         ) -> None:
-            self.active = active
             self.fn = fn
+            self.active = active
+            self.last_execution_us = None
             self.execution_interval_us = execute_interval_us
+            self.touch_forces_execution = touch_forces_execution
+
+        @property
+        def active(self) -> bool:
+            """
+            Determines if the task should be executed.
+            """
+            return self.__active
+
+        @active.setter
+        def active(self, is_active):
+            """
+            Sets if the task should be executed.
+            """
+            self.__active = is_active
+            # Reset last execution when re-activated, so it will run on
+            # the next tick. This prevents a delay if the task was quickly
+            # activated and re-activated.
             # Use None, to avoid and edge cases when values wrap, etc.
             self.last_execution_us = None
-            self.touch_forces_execution = touch_forces_execution
 
     #
     # Internal state

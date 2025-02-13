@@ -385,6 +385,17 @@ class Test_OS_run:
 
         mock_task.assert_called_once()
 
+class Test_OS_active:
+
+    def test_when_task_made_active_then_last_execution_time_reset(self):
+
+        expected_fn = mock.Mock()
+        os_instance = OS()
+        task = os_instance.add_task(expected_fn)
+        task.last_execution_us = 1
+        task.active = True
+        assert task.last_execution_us is None
+
 
 class Test_OS_tasks:
 

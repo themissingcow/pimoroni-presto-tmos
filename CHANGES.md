@@ -13,6 +13,9 @@ v1.0.0-alpha.X
 
 - Fixed intermittent screen wakes caused by the display state clock
   wrapping around.
+- Ensured tasks are always executed immediately after they are
+  re-activated (when an execution_frequency was specified), rather than
+  at their previously scheduled next time.
 
 v1.0.0-alpha.2
 ==============
