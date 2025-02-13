@@ -16,6 +16,7 @@ v1.0.0-alpha.X
 - Ensured tasks are always executed immediately after they are
   re-activated (when an execution_frequency was specified), rather than
   at their previously scheduled next time.
+- Fixed missing hoist of the `touch` instance in `OS.__init__`
 
 v1.0.0-alpha.2
 ==============

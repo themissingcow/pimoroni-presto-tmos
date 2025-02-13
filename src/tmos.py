@@ -340,6 +340,7 @@ class OS:
 
         self.presto = Presto(*args, **kwarg)
         self.display = self.presto.display
+        self.touch = self.presto.touch
 
         self.backlight_manager = BacklightManager()
         self.backlight_manager.presto = self.presto
