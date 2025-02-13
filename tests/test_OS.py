@@ -26,15 +26,11 @@ class Test_OS_init:
         assert os_instance.presto is mock_presto_module.Presto.return_value
         mock_presto_module.Presto.assert_called_once()
 
-    def test_when_called_with_args_then_presto_is_initialised_with_args(
-        self, mock_presto_module
-    ):
+    def test_when_called_with_args_then_presto_is_initialised_with_args(self, mock_presto_module):
         expected_args = (1, 2, "a", "b")
         expected_kwargs = {"d": 1, "e": "2"}
         OS(*expected_args, **expected_kwargs)
-        mock_presto_module.Presto.assert_called_once_with(
-            *expected_args, **expected_kwargs
-        )
+        mock_presto_module.Presto.assert_called_once_with(*expected_args, **expected_kwargs)
 
     def test_when_ambient_light_not_in_kwarg_then_glow_led_control_enabled(self):
 
@@ -578,7 +574,6 @@ class Test_OS_update_display:
         os_instance.presto.presto.update.assert_called_with(os_instance.presto.display)
         assert os_instance.presto.touch.state
         os_instance.presto.touch.state = False
-
 
     def test_when_called_with_region_then_partial_update_called(self):
 

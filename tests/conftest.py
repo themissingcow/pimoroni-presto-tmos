@@ -23,6 +23,7 @@ mock_presto.Presto.return_value.touch.poll = mock.Mock()
 # progress.
 mock_presto.Presto.return_value.touch.state = False
 mock_presto.Presto.return_value.touch.state2 = False
+mock_presto.Presto.return_value.display.get_bounds.return_value = (240, 240)
 mock_presto.Buzzer = mock.Mock()
 sys.modules["presto"] = mock_presto
 
@@ -49,6 +50,8 @@ sys.modules["touch"] = mock_touch
 time.ticks_us = lambda: time.monotonic_ns() // 1000
 time.ticks_diff = lambda a, b: a - b
 time.sleep_ms = lambda s: time.sleep(s / 1000)
+
+sys.print_exception = mock.Mock()
 
 
 @pytest.fixture

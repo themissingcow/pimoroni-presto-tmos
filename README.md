@@ -19,6 +19,7 @@ around paged displays of information.
   - [x] Touches cause immediate updates (optional)
 - [x] Timeout based display backlight / Glow LED dimming and sleep
 - [ ] Page-based window manager
+  - [x] Programmatic page navigation
   - [ ] Tabbed UI for page switching
   - [ ] Brightness controls
   - [ ] Clock
@@ -28,7 +29,8 @@ around paged displays of information.
 > [!CAUTION]
 > This project is in its early days and is subject to breaking changes.
 
-1. Upload [tmos.py](src/tmos.py) to your Presto.
+1. Upload [tmos.py](src/tmos.py) to your Presto (and
+   [tmos_ui.py](src/tmos_ui.py) if you want the window manager/themes).
 2. If you want to use WiFI, configure
    [`secrets.py`](https://github.com/pimoroni/pimoroni-pico/blob/main/micropython/examples/pico_wireless/secrets.py) accordingly.
 3. Create an instance of `tmos.OS`.

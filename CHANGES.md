@@ -6,6 +6,8 @@ v1.0.0-alpha.X
 - Added `OS.update_display` to update the screen without a touch poll.
 - Added `OS.message_handlers` method to retrieve the currently
   registered handlers.
+- Added a `WindowManager` in the `tmos_ui` module, that simplifies
+  building applications with multiple 'pages'.
 
 ## Bug Fixes
 

@@ -26,6 +26,7 @@ These are added in explicit order in the main run loop (see __tick),
 around user specified tasks to ensure consistent order of operations and
 state management.
 """
+import sys
 import time
 
 from collections import namedtuple
@@ -56,6 +57,7 @@ MSG_FATAL = 3
 
 MSG_SEVERITY_NAMES = ("DEBUG", "INFO", "WARNING", "FATAL")
 
+Size = namedtuple("Size", ("width", "height"))
 Region = namedtuple("Region", ("x", "y", "width", "height"))
 
 
@@ -213,9 +215,7 @@ class BacklightManager:
         return False if in_initial_update else True
 
     @staticmethod
-    def __next_display_state(
-        time_now_s: int, last_interaction_s: int, timeouts: TimeoutSettings
-    ):
+    def __next_display_state(time_now_s: int, last_interaction_s: int, timeouts: TimeoutSettings):
         """
         Calculates the updated display sate phase There are three
         states, on, dimmed and off. Triggered by a timeout since last
@@ -284,9 +284,13 @@ class OS:
         touch_forces_execution: bool
 
         def __init__(
-            self, fn, execute_interval_us: int, touch_forces_execution: bool = True
+            self,
+            fn,
+            execute_interval_us: int,
+            touch_forces_execution: bool = True,
+            active: bool = True,
         ) -> None:
-            self.active = True
+            self.active = active
             self.fn = fn
             self.execution_interval_us = execute_interval_us
             # Use None, to avoid and edge cases when values wrap, etc.
@@ -318,6 +322,7 @@ class OS:
         self.__tasks = []
 
         self.presto = Presto(*args, **kwarg)
+        self.display = self.presto.display
 
         self.backlight_manager = BacklightManager()
         self.backlight_manager.presto = self.presto
@@ -362,9 +367,7 @@ class OS:
 
             if glow_leds:
                 self.post_message("Initialising Glow LEDs")
-                self.glow_leds = WS2812(
-                    self.__GLOW_LED_COUNT, 0, 0, self.__GLOW_LED_PIN
-                )
+                self.glow_leds = WS2812(self.__GLOW_LED_COUNT, 0, 0, self.__GLOW_LED_PIN)
                 if glow_fps:
                     self.glow_leds.start(glow_fps)
                 else:
@@ -428,6 +431,8 @@ class OS:
         :param region: If specified, only this region will be updated
         """
         if region:
+            # partial_update only currently works with 1 layer
+            #   https://github.com/pimoroni/presto/issues/56
             self.presto.presto.partial_update(self.presto.display, *region)
         else:
             self.presto.presto.update(self.presto.display)
@@ -471,14 +476,15 @@ class OS:
         :param msg: A text message, may contain multiple lines.
         :param severity: One of the OS.MSG_* severity constants.
         """
-        for handler in self.__message_handlers:
+        for i, handler in enumerate(self.__message_handlers):
             # As we report fatal errors via the messaging system, we
             # don't want a faulty handler to interrupt the reporting of
             # the message.
             try:
                 handler(msg, severity)
-            except Exception:  # pylint: disable=broad-except
-                pass
+            except Exception as exc:  # pylint: disable=broad-except
+                print(f"Exception in message handler {i} {handler}")
+                sys.print_exception(exc)
 
     def add_task(
         self,
@@ -486,6 +492,7 @@ class OS:
         index: int = -1,
         execution_frequency: int | None = None,
         touch_forces_execution: bool = True,
+        active: bool = True,
     ) -> Task:
         """
         Adds a task to be run during each cycle of the run loop.
@@ -509,10 +516,8 @@ class OS:
         if execution_frequency is not None and execution_frequency <= 0:
             raise ValueError(f"execution_frequency must be > 0 ({execution_frequency})")
 
-        execute_interval_us = (
-            int(1e6 // execution_frequency) if execution_frequency else -1
-        )
-        task = OS.Task(fn, execute_interval_us, touch_forces_execution)
+        execute_interval_us = int(1e6 // execution_frequency) if execution_frequency else -1
+        task = OS.Task(fn, execute_interval_us, touch_forces_execution, active=active)
 
         if index < 0:
             self.__tasks.append(task)
@@ -584,7 +589,7 @@ class OS:
         self.presto.touch.poll()
 
         time_us = time.ticks_us()
-        time_now_s =time.time()
+        time_now_s = time.time()
 
         # Update the display before anything else, so we can consume the
         # touch event if we need to.
@@ -616,7 +621,4 @@ class OS:
             return True
         if task.last_execution_us is None:
             return True
-        return (
-            time.ticks_diff(time_now_us, task.last_execution_us)
-            >= task.execution_interval_us
-        )
+        return time.ticks_diff(time_now_us, task.last_execution_us) >= task.execution_interval_us
