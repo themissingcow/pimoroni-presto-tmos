@@ -385,6 +385,7 @@ class Test_OS_run:
 
         mock_task.assert_called_once()
 
+
 class Test_OS_active:
 
     def test_when_task_made_active_then_last_execution_time_reset(self):
@@ -521,7 +522,7 @@ class Test_OS_run_execution_frequency:
         frequency = 5
         expected_interval_us = int(1e6 // frequency)
         max_expected_touch_interval_us = 1e6 // (5 * frequency)
-        num_calls = 6
+        num_calls = 7
         num_calls_in_touch = 3
 
         call_times = []
@@ -550,13 +551,54 @@ class Test_OS_run_execution_frequency:
         # Check the last run entry is close enough to the call time we logged
         assert abs(task.last_execution_us - call_times[-1]) < 100
 
+        # Note: there is an additional call immediately after touch is
+        # false ,to allow UIs to update. As such there will be
+        # num_calls_in_touch + 1 at a high frequency.
+
         # Check touch intervals are suitably short
-        with_touch = call_times[:num_calls_in_touch]
+        with_touch = call_times[: num_calls_in_touch + 1]
         self.__check_intervals(with_touch, max_expected_touch_interval_us)
 
         # Check non-touch intervals are as expected from frequency
-        without_touch = call_times[num_calls_in_touch - 1 :]
-        self.__check_intervals(without_touch, expected_interval_us, 0.1)
+        without_touch = call_times[num_calls_in_touch:]
+        self.__check_intervals(without_touch, expected_interval_us, 0.2)
+
+    def test_when_touch_forces_execution_then_additional_high_freq_invocation_after_touch_up(self):
+
+        os_instance = OS()
+
+        execution_frequency = 5
+        expected_interval = 1e6 // execution_frequency
+        call_touch_states = []
+        call_times = []
+        num_calls = 3
+
+        def task():
+            call_touch_states.append(os_instance.touch.state)
+            call_times.append(time.ticks_us())
+            if os_instance.touch.state:
+                os_instance.touch.state = False
+            if len(call_times) == num_calls:
+                os_instance.stop()
+
+        os_instance.add_task(
+            task, execution_frequency=execution_frequency, touch_forces_execution=True
+        )
+        os_instance.touch.state = True
+        os_instance.run()
+
+        intervals = self.__intervals(call_times)
+        # Check we were called with the expected touch states
+        assert call_touch_states == [True, False, False]
+        # Check the initial interval was short (ie the first two calls
+        # with True/False), less thank half the expected interval shows
+        # that the scheduling was effectively immediate.
+        assert intervals[0] < expected_interval // 2
+        assert intervals[1] > expected_interval // 2
+
+    @staticmethod
+    def __intervals(call_times: [int]) -> [int]:
+        return [b - a for a, b in zip(call_times[:-1], call_times[1:])]
 
     def __check_intervals(
         self, call_times: [int], expected_interval: int, tolerance: float = None
@@ -566,7 +608,7 @@ class Test_OS_run_execution_frequency:
         expected_interval, or if a tolerance supplied (% as 0-1), then
         within that range.
         """
-        intervals = [b - a for a, b in zip(call_times[:-1], call_times[1:])]
+        intervals = self.__intervals(call_times)
         average_interval = sum(intervals) // (len(call_times) - 1)
         if tolerance is not None:
             difference = abs(1 - (average_interval / expected_interval))

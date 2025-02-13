@@ -9,6 +9,12 @@ v1.0.0-alpha.X
 - Added a `WindowManager` in the `tmos_ui` module, that simplifies
   building applications with multiple 'pages'.
 
+## Improvements
+
+- `touch_forces_execution` now causes an additional update immediately
+  after a touch has ended. Allowing any necessary cleanup to be
+  completed without waiting for the next scheduled execution.
+
 ## Bug Fixes
 
 - Fixed intermittent screen wakes caused by the display state clock

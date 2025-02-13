@@ -321,6 +321,7 @@ class OS:
     __message_handlers: []
     __tasks: []
     __running = False
+    __touch_was_active = False
 
     def __init__(self, *args, **kwarg) -> None:
         """
@@ -621,8 +622,12 @@ class OS:
         Runs any tasks that are pending, based on their execution
         frequency and other triggers.
         """
+        # We need to update after a touch has ended, so the page can update.
+        # Capture the touch state now, in case it is polled within the task.
+        touch_considered_active = self.presto.touch.state or self.__touch_was_active
+        self.__touch_was_active = self.presto.touch.state
         for task in self.__tasks:
-            if not self.__task_should_run(task, time_us, self.presto.touch.state):
+            if not self.__task_should_run(task, time_us, touch_considered_active):
                 continue
             task.last_execution_us = time_us
             task.fn()
