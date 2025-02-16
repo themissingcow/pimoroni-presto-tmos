@@ -25,12 +25,12 @@ class Test_Control:
         c.process_touch_state(touch_state)
         touch_state.assert_not_called()
 
-    def test_tick_implementation_is_a_noop(self):
+    def test_draw_implementation_is_a_noop(self):
 
         c = Control()
         display = mock.Mock()
         theme = mock.Mock()
-        c.tick(display, theme)
+        c.draw(display, theme)
         display.assert_not_called()
         theme.assert_not_called()
 

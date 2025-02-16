@@ -3,13 +3,14 @@ v1.0.0-alpha.X
 
 ## New Features
 
-- Added a `PushButton` to the `tmos_ui` module, along with supporting
-  infrastructure in `Page`, so simplify the creation of on-screen
-  controls. This also adds a default implementation of `Page.tick` that
-  polls touch and triggers appropriate button events. A new `Page._draw`
-  convenience has been added to streamline drawing a page's content.
-  This is somewhat experimental and may change as more control types are
-  developed. I may have missed a breaking change in here somewhere 🙃.
+- Added a button control classes to the `tmos_ui` module, along with
+  supporting infrastructure in `Page`, so simplify the creation of
+  on-screen controls. This also adds a default implementation of
+  `Page.tick` that polls touch and triggers appropriate button events.
+  A new `Page._draw` convenience has been added to streamline drawing
+  a page's content. This is somewhat experimental and may change as more
+  control types are developed. I may have missed a breaking change in
+  here somewhere 🙃.
 - Added `OS.update_display` to update the screen without a touch poll.
 - Added `OS.message_handlers` method to retrieve the currently
   registered handlers.

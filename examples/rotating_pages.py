@@ -8,7 +8,7 @@ import time
 from picographics import PicoGraphics
 
 from tmos import OS, Region
-from tmos_ui import Page, PushButton, Theme, WindowManager, to_screen
+from tmos_ui import Page, MomentaryButton, Theme, WindowManager, to_screen
 
 # layers=1 is so we can use partial_update, see:
 #   https://github.com/pimoroni/presto/issues/56
@@ -40,7 +40,7 @@ class PageWithTime(Page):
 
         # Make a button on the bottom left to change to the prev page
         prev_region = Region(region.x + padding, btn_y, btn_width, btn_height)
-        prev_btn = PushButton(prev_region, "Prev")
+        prev_btn = MomentaryButton(prev_region, "Prev")
         # Buttons events can call functions when activated via touch.
         # This is handled by the os, so we don't have to check button
         # state ourselves. By default, regardless of the update
@@ -56,7 +56,7 @@ class PageWithTime(Page):
         # Make a button on the bottom right to change to the next page
         next_btn_x = region.x + padding + btn_width + padding
         next_region = Region(next_btn_x, btn_y, btn_width, btn_height)
-        next_tn = PushButton(next_region, "Next")
+        next_tn = MomentaryButton(next_region, "Next")
         next_tn.on_button_up = window_manager.next_page
         self._controls.append(next_tn)
 

@@ -6,6 +6,8 @@ The Missing "OS": UI Layer
 """
 import math
 
+from collections import namedtuple
+
 from picographics import PicoGraphics
 
 from tmos import OS, Region, MSG_INFO, MSG_FATAL, MSG_SEVERITY_NAMES
@@ -249,7 +251,7 @@ class Theme:
             x, y, w, h = region
             display.rectangle(x + 1, y + 1, w - 2, h - 2)
 
-    #pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments
     def draw_button_title(
         self, display: PicoGraphics, region: Region, is_pressed: bool, title: str, title_scale: int
     ):
@@ -303,65 +305,281 @@ class Control:
     only one of many pages will be visible at any given time.
 
     We also introduce a more html style even model to controls.
+
+    Controls usually have one or more on_* attributes, that can be set
+    to a callable, that should be invoked upon specific state
+    transitions of the control.
     """
 
     def process_touch_state(self, touch):
-        pass
+        """
+        Process the touch and update the state of the button, calling
+        any event callbacks as relevant.
+        """
 
-    def tick(self, display: PicoGraphics, theme: Theme):
-        pass
+    def draw(self, display: PicoGraphics, theme: Theme):
+        """
+        Draw the control within its region, using the supplied theme to
+        reflect its current state.
+        """
 
     def _event(self, event_name: str, *args, **kwargs):
+        """
+        Invoke the registered callable for the named event, if one has
+        been set. Otherwise its a noop.
+        """
         fn = getattr(self, event_name)
         if fn:
             fn(*args, **kwargs)
 
 
-class PushButton(Control):
+class _Button(Control):
+    """
+    A base class for buttons, that defines the main 'is_down' state plus
+    associated events.
+    """
 
     title: str
-    title_rel_scale: float
-    region: Region
+    """
+    The button text.
+    """
 
-    is_down: bool = False
+    title_rel_scale: float
+    """
+    The scale of the button's text relative to the theme's default text
+    scale.
+    """
+
+    region: Region
+    """
+    The area occupied by the button.
+    """
+
+    __is_down: bool = False
 
     on_button_down = None
+    """
+    A callable, invoked when the button transitions to a down state.
+    """
+
     on_button_up = None
+    """
+    A callable, invoked when the button transitions to an up state.
+    """
+
     on_button_cancel = None
+    """
+    A callable, invoked when a users touch leaves the button when down.
+    """
 
     def __init__(self, region: Region, title: str = "", title_rel_scale=1) -> None:
         self.region = region
         self.title = title
         self.title_rel_scale = title_rel_scale
 
+    @property
+    def is_down(self) -> bool:
+        """
+        :return: Whether the button is currently down.
+        """
+        return self.__is_down
+
+    def set_is_down(self, is_down: bool, emit: bool = True):
+        """
+        Programmatically set the buttons state.
+
+        :param is_down: The new state of the button.
+        :param emit: When True, event callbacks will be invoked if the
+          button changes state as a result of this call.
+        """
+        if is_down == self.__is_down:
+            return
+
+        self.__is_down = is_down
+        if emit:
+            self._event("on_button_down" if is_down else "on_button_up")
+
+    def draw(self, display: PicoGraphics, theme: Theme):
+        scale = round(theme.default_font_scale * self.title_rel_scale)
+
+        theme.draw_button_frame(display, self.region, self.__is_down)
+        if self.title:
+            theme.draw_button_title(display, self.region, self.__is_down, self.title, scale)
+
+
+class MomentaryButton(_Button):
+    """
+    A button that only remains pressed whilst a touch is active within
+    the buttons region.
+
+    If the touch ends inside, on_button_up is invoked, otherwise if the
+    touch exits the button region, on_button_cancel will be invoked.
+    """
+
     def process_touch_state(self, touch):
 
         touch_active = touch.state
         touch_is_inside = touch_active and is_within(self.region, touch.x, touch.y)
+        is_down = self.is_down
+        self.set_is_down(touch_is_inside, emit=False)
 
         if touch_is_inside:
-            if not self.is_down:
+            if not is_down:
                 self._event("on_button_down")
         else:
             if not touch_active:
                 # Touch ended within our region
-                if self.is_down:
+                if is_down:
                     self._event("on_button_up")
-            elif self.is_down:
+            elif is_down:
                 # The touch has moved out side our area, we don't count
                 # this as a button up as its a common way to 'cancel' a
                 # press.
                 self._event("on_button_cancel")
 
-        self.is_down = touch_is_inside
+
+class LatchingButton(_Button):
+    """
+    A button that toggles between down and up on successive presses.
+
+    on_button_down/on_button_up will be immediately invoked as soon as
+    a touch enters the button region.
+    """
+
+    _last_touch_state = None
+
+    def process_touch_state(self, touch):
+
+        touch_active = touch.state
+        touch_is_inside = touch_active and is_within(self.region, touch.x, touch.y)
+
+        # De-bounce, so we don't toggle every time we process touches
+        if touch_is_inside == self._last_touch_state:
+            return
+
+        self._last_touch_state = touch_is_inside
+
+        if touch_is_inside:
+            was_on = self.is_down
+            self.set_is_down(not was_on)
+
+
+class RadioButton(Control):
+    """
+    A control consisting of multiple LatchingButtons, that represent
+    a list of options. Only one option can be active at any one time.
+    Similar to the old radio preset buttons.
+    """
+
+    region: Region
+
+    on_current_index_changed = None
+    """
+    A callable that will be invoked when the currently acrtive index is
+    changed.
+    """
+
+    _controls: [LatchingButton]
+    _options: [str]
+    _current_index: int = -1
+
+    def __init__(
+        self,
+        region: Region,
+        options: [str],
+        current_index: int = 0,
+        title_rel_scale: float = 1.0,
+    ) -> None:
+        """
+        Constructs a new RadioButton.
+
+        :param region: The region occupied by the button.
+        :param options:  A list of titles for each segment of the control.
+        :param current_index: The index of the active option.
+        :param title_rel_scale: The scale of the button text relative to
+          the themes default size.
+        :raises ValueError: If no options are supplied, or current_index
+          is our of range.
+        """
+        self.region = region
+
+        if not options:
+            raise ValueError("One or more options must be provided")
+
+        self._options = options
+        self._controls = []
+
+        option_width = region.width // len(options)
+        for i, option in enumerate(options):
+            ctl_region = Region(
+                region.x + (i * option_width), region.y, option_width, region.height
+            )
+            control = self._create_option_control(i, ctl_region, option, title_rel_scale)
+            self._controls.append(control)
+
+        self.set_current_index(current_index)
+
+    def _create_option_control(self, index: int, region: Region, title: str, *args) -> Control:
+        """
+        Creates the control for each option of the control.
+        """
+        button = LatchingButton(region, title, *args)
+        button.on_button_down = lambda: self.set_current_index(index)
+
+        def disallow_off_if_current():
+            """
+            The current option can only be turned off by selecting
+            another option.
+            """
+            if index == self.current_index:
+                button.set_is_down(True, emit=False)
+
+        button.on_button_up = disallow_off_if_current
+
+        return button
+
+    @property
+    def options(self) -> [str]:
+        """
+        The options represented by the control.
+        """
+        return self._options
+
+    @property
+    def current_index(self) -> int:
+        """
+        The index of the currently active option.
+        """
+        return self._current_index
+
+    def set_current_index(self, index: int):
+        """
+        Programmatically set the currently active index.
+
+        :param index: The newly active index.
+        :raises ValueError: If the supplied index is outside of the
+          range of the controls options.
+        """
+        if index < 0 or index >= len(self._options):
+            raise ValueError(f"Index {index} is out of range (0-{len(self._options)}")
+
+        if index == self._current_index:
+            return
+
+        self._current_index = index
+        for i, control in enumerate(self._controls):
+            control.set_is_down(i == index, emit=True)
+
+        if fn := self.on_current_index_changed:
+            fn(index)  # pylint: disable=not-callable
+
+    def process_touch_state(self, touch):
+        for control in self._controls:
+            control.process_touch_state(touch)
 
     def draw(self, display: PicoGraphics, theme: Theme):
-
-        scale = round(theme.default_font_scale * self.title_rel_scale)
-
-        theme.draw_button_frame(display, self.region, self.is_down)
-        if self.title:
-            theme.draw_button_title(display, self.region, self.is_down, self.title, scale)
+        for button in self._controls:
+            button.draw(display, theme)
 
 
 class Page:
