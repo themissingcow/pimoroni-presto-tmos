@@ -105,6 +105,56 @@ class Test_WindowManager_pages:
         a_wm.add_page(a_page, make_current=True)
         assert a_wm.current_page is a_page
 
+    def test_when_added_with_no_execution_frequency_specified_then_task_interval_is_minus_one(
+        self, a_wm, a_page
+    ):
+        a_page.execution_frequency = None
+        prev_tasks = a_wm.os.tasks()
+        a_wm.add_page(a_page)
+        page_task = next(filter(lambda t: t not in prev_tasks, a_wm.os.tasks()))
+        assert page_task.execution_interval_us == -1
+
+    def test_when_added_with_execution_frequency_specified_then_task_has_expected_interval(
+        self, a_wm, a_page
+    ):
+        a_page.execution_frequency = 5
+        expected_interval = 1e6 // a_page.execution_frequency
+        prev_tasks = a_wm.os.tasks()
+        a_wm.add_page(a_page)
+        page_task = next(filter(lambda t: t not in prev_tasks, a_wm.os.tasks()))
+        assert page_task.execution_interval_us == expected_interval
+
+    def test_when_run_then_page_setup_called_before_will_show(self, a_wm, a_mock_page):
+
+        a_wm.add_page(a_mock_page, make_current=True)
+        a_wm.os.add_task(a_wm.os.stop)
+        a_wm.os.run()
+
+        expected_calls = [
+            mock.call.setup(a_wm.content_region, a_wm),
+            mock.ANY,
+            mock.call.will_show(),
+        ]
+
+        # For some reason assert_has_calls really doesn't like this arrangement...
+        calls = a_mock_page.mock_calls
+        first_idx = calls.index(expected_calls[0])
+        assert calls[first_idx : first_idx + len(expected_calls)] == expected_calls
+
+    def test_when_current_page_changes_then_will_hide_called_on_previous_page(
+        self, a_wm, a_page, a_mock_page
+    ):
+
+        # Run with our mock page to make sure it's active
+        a_wm.add_page(a_mock_page, make_current=True)
+        a_wm.os.add_task(a_wm.os.stop)
+        a_wm.os.run()
+
+        # Run with a new page
+        a_wm.add_page(a_page, make_current=True)
+        a_wm.os.run()
+        a_mock_page.will_hide.assert_called_once()
+
     def test_when_no_page_made_current_then_no_page_ticks(self, a_wm):
 
         class TestPage(Page):
@@ -246,6 +296,14 @@ def a_page():
         pass
 
     return TestPage()
+
+
+@pytest.fixture
+def a_mock_page():
+    mock_page = mock.create_autospec(Page)
+    mock_page.execution_frequency = None
+    mock_page.title = "Mock Page"
+    return mock_page
 
 
 @pytest.fixture

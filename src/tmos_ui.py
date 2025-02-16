@@ -11,11 +11,43 @@ from picographics import PicoGraphics
 from tmos import OS, Region, MSG_INFO, MSG_FATAL, MSG_SEVERITY_NAMES
 
 
-__all__ = ["Theme", "DefaultTheme", "WindowManager", "Page", "to_screen"]
+__all__ = [
+    "Control",
+    "DefaultTheme",
+    "Page",
+    "PushButton",
+    "Theme",
+    "WindowManager",
+    "is_within",
+    "to_screen",
+]
 
 
-def to_screen(region: Region, x: int, y: int):
+def to_screen(region: Region, x: int, y: int) -> (int, int):
+    """
+    Offsets a point within region to screen space, without bounds
+    checking.
+
+    Eg, x = 10, y = 10, in Region( 100, 200, ... ) returns (110, 120)
+
+    :param region: Target region
+    :param x: x coordinate relative to the regions origin.
+    :param y: y coordinate relative to the regions origin.
+    :return: Sceen space x, y tupple.
+    """
     return x + region.x, y + region.y
+
+
+def is_within(region: Region, x: int, y: int) -> bool:
+    """
+    Determines if the supplied x/y coordinates are within the region.
+
+    :param region: Region to intersect.
+    :param x: The x coordinate to test.
+    :param y: The y coordinate to test.
+    :return: True if the coordinates are within the region.
+    """
+    return region.x <= x < (region.x + region.width) and region.y <= y < (region.y + region.height)
 
 
 class Theme:
@@ -132,6 +164,32 @@ class Theme:
         """
         display.text(text, *args, scale=self._text_scale(scale), **kwargs)
 
+    def centered_text(
+        self,
+        display: PicoGraphics,
+        region: Region,
+        text: str,
+        *args,
+        scale: int | None = None,
+        **kwargs,
+    ):
+        """
+        Draws single line text approximately centered within the region.
+
+        See @text for other args.
+        """
+        scale = self._text_scale(scale)
+        height = self.line_spacing(scale)
+        text_width = display.measure_text(text, scale)
+
+        cx = region.x + (region.width // 2)
+        cy = region.y + (region.height // 2)
+
+        x = cx - (text_width // 2)
+        y = cy - (height // 2)
+
+        self.text(display, text, x, y, *args, scale=scale, **kwargs)
+
     def draw_strings(
         self, display: PicoGraphics, messages: [str], region: Region, scale: int | None = None
     ):
@@ -176,6 +234,37 @@ class Theme:
             if offset > region.height:
                 break
 
+    def draw_button_frame(self, display: PicoGraphics, region: Region, is_pressed: bool):
+        """
+        Draws the frame/background for an on-screen "button"
+
+        :param display: The display to draw the messages on.
+        :param region: The bounds of the button.
+        :param is_pressed: Whether the button is currently pressed.
+        """
+        display.set_pen(self.foreground_pen)
+        display.rectangle(*region)
+        if is_pressed:
+            display.set_pen(self.background_pen)
+            x, y, w, h = region
+            display.rectangle(x + 1, y + 1, w - 2, h - 2)
+
+    #pylint: disable=too-many-arguments
+    def draw_button_title(
+        self, display: PicoGraphics, region: Region, is_pressed: bool, title: str, title_scale: int
+    ):
+        """
+        Draws the frame/background for an on-screen "button"
+
+        :param display: The display to draw the messages on.
+        :param region: The bounds of the button.
+        :param is_pressed: Whether the button is currently pressed.
+        :param title: The button title.
+        :param title_scale: The font scale to draw the title with.
+        """
+        display.set_pen(self.foreground_pen if is_pressed else self.background_pen)
+        self.centered_text(display, region, title, scale=title_scale)
+
     def _text_scale(self, scale: int | None = None) -> int:
         """
         A helper to determine text scale to draw, taking an optional
@@ -205,6 +294,76 @@ class DefaultTheme(Theme):
         self.default_font_scale = 4 if w > 240 else 2
 
 
+class Control:
+    """
+    A base for interactive elements.
+
+    We don't make use of the stock Presto Button, etc as they manage
+    global state. This isn't compatible with the multi-page model, where
+    only one of many pages will be visible at any given time.
+
+    We also introduce a more html style even model to controls.
+    """
+
+    def process_touch_state(self, touch):
+        pass
+
+    def tick(self, display: PicoGraphics, theme: Theme):
+        pass
+
+    def _event(self, event_name: str, *args, **kwargs):
+        fn = getattr(self, event_name)
+        if fn:
+            fn(*args, **kwargs)
+
+
+class PushButton(Control):
+
+    title: str
+    title_rel_scale: float
+    region: Region
+
+    is_down: bool = False
+
+    on_button_down = None
+    on_button_up = None
+    on_button_cancel = None
+
+    def __init__(self, region: Region, title: str = "", title_rel_scale=1) -> None:
+        self.region = region
+        self.title = title
+        self.title_rel_scale = title_rel_scale
+
+    def process_touch_state(self, touch):
+
+        touch_active = touch.state
+        touch_is_inside = touch_active and is_within(self.region, touch.x, touch.y)
+
+        if touch_is_inside:
+            if not self.is_down:
+                self._event("on_button_down")
+        else:
+            if not touch_active:
+                # Touch ended within our region
+                if self.is_down:
+                    self._event("on_button_up")
+            elif self.is_down:
+                # The touch has moved out side our area, we don't count
+                # this as a button up as its a common way to 'cancel' a
+                # press.
+                self._event("on_button_cancel")
+
+        self.is_down = touch_is_inside
+
+    def draw(self, display: PicoGraphics, theme: Theme):
+
+        scale = round(theme.default_font_scale * self.title_rel_scale)
+
+        theme.draw_button_frame(display, self.region, self.is_down)
+        if self.title:
+            theme.draw_button_title(display, self.region, self.is_down, self.title, scale)
+
+
 class Page:
     """
     The base Page class represents a single screen managed by the
@@ -214,7 +373,7 @@ class Page:
     window manager.
 
     Subclass a page to implement your drawing code and encapsulate its
-    state.
+    state. You must call the base class initialiser.
     """
 
     title: str = "Page"
@@ -228,6 +387,14 @@ class Page:
     The preferred frequency for page updates. Tick will be called at
     up to this rate, it may be slower if the system is busy.
     """
+
+    _controls: [Control]
+
+    def __init__(self) -> None:
+        self._controls = []
+
+    def setup(self, region: Region, window_manager: "WindowManager"):
+        pass
 
     def will_show(self):
         """
@@ -255,8 +422,25 @@ class Page:
 
         Use the window_manager.theme and its properties to draw content
         where consistency with other pages is required.
+
+        The default implementation ensures controls are processed prior
+        to drawing, so their current state is accurately reflects the
+        state of user interactivity. _draw is then called, and controls
+        are drawn on top.
         """
-        raise NotImplementedError("Pages must implement tick")
+        display = window_manager.display
+        touch = window_manager.os.touch
+        theme = window_manager.theme
+
+        for control in self._controls:
+            control.process_touch_state(touch)
+
+        self._draw(display, region, theme)
+
+        for control in self._controls:
+            control.draw(display, theme)
+
+        window_manager.update_display(region)
 
     def will_hide(self):
         """
@@ -264,6 +448,21 @@ class Page:
 
         This will be called when the page transitions to a no longer
         visible state.
+        """
+
+    def teardown(self):
+        """
+        Called before a page is removed.
+        """
+        self._controls = []
+
+    def _draw(self, display: PicoGraphics, region: Region, theme: Theme):
+        """
+        The default implementation of tick will call this method to draw
+        non-interactive page content.
+
+        There is no need to update the display, this will be done for
+        the content region after controls have been done.
         """
 
 
@@ -280,6 +479,7 @@ class WindowManager:
     __page_tasks: {Page, OS.Task}
     __current_page: Page = None
     __last_page: Page = None
+    __pages_need_setup: bool = True
 
     __messages: []
 
@@ -293,7 +493,7 @@ class WindowManager:
         self.theme = theme or DefaultTheme()
         self.theme.setup(self.display)
 
-        self.__content_region = Region(0, 0, *os_.display.get_bounds())
+        self.__set_content_region(Region(0, 0, *os_.display.get_bounds()))
 
         # As we use the main os run loop to run pages (with their
         # respective intervals), we need to be first up so we can
@@ -310,6 +510,10 @@ class WindowManager:
         Determines the area of the display that can be used for content.
         """
         return self.__content_region
+
+    def __set_content_region(self, region: Region):
+        self.__content_region = region
+        self.__pages_need_setup
 
     def tick(self):
         """
@@ -380,6 +584,8 @@ class WindowManager:
         self.__pages.remove(page)
         self.os.remove_task(self.__page_tasks[page])
         del self.__page_tasks[page]
+
+        page.teardown()
 
         if self.__current_page is page:
             self.set_current_page(self.__pages[-1])
@@ -462,6 +668,11 @@ class WindowManager:
         # first in the list. Shouldn't be a problem in common scenarios,
         # but would be nice to make this stable. Worst case it the new
         # page doesn't update until the next tick...
+
+        if self.__pages_need_setup:
+            for page in self.__pages:
+                page.setup(self.content_region, self)
+            self.__pages_need_setup = False
 
         if self.__current_page == self.__last_page:
             return
