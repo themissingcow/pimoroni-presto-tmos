@@ -20,6 +20,7 @@ around paged displays of information.
 - [x] Timeout based display backlight / Glow LED dimming and sleep
 - [ ] Page-based window manager
   - [x] Programmatic page navigation
+  - [x] Basic buttons with event callbacks
   - [ ] Tabbed UI for page switching
   - [ ] Brightness controls
   - [ ] Clock
