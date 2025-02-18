@@ -1,4 +1,4 @@
-v1.0.0-alpha.X
+v1.0.0-alpha.3
 ==============
 
 ## New Features

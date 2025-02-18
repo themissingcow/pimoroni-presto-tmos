@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 license = {text = "MIT"}
 name = "tmos"
-version = "1.0.0a2"
+version = "1.0.0a3"
 description = "A minimal single-tasking OS for the Pimoroni Presto platform"
 authors = [
 	{ name = "Tom Cowland", email = "info@tomcowland.com" }
