@@ -596,6 +596,31 @@ class Test_OS_run_execution_frequency:
         assert intervals[0] < expected_interval // 2
         assert intervals[1] > expected_interval // 2
 
+    def test_when_task_enqueued_then_runs_immediately(self):
+
+        frequency = 5
+        expected_interval_us = int(1e6 // frequency)
+        num_calls = 3
+
+        call_times = []
+
+        os_instance = OS()
+
+        task = None
+
+        def task_fn():
+            task.enqueue()
+            call_times.append(time.ticks_us())
+            if len(call_times) == num_calls:
+                os_instance.stop()
+
+        task = os_instance.add_task(task_fn, execution_frequency=frequency)
+
+        os_instance.run()
+
+        # Check intervals are suitably short
+        self.__check_intervals(call_times, expected_interval_us // 2)
+
     @staticmethod
     def __intervals(call_times: [int]) -> [int]:
         return [b - a for a, b in zip(call_times[:-1], call_times[1:])]

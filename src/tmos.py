@@ -312,6 +312,13 @@ class OS:
             # the next tick. This prevents a delay if the task was quickly
             # activated and re-activated.
             # Use None, to avoid and edge cases when values wrap, etc.
+            self.enqueue()
+
+        def enqueue(self):
+            """
+            Ensures the task will execute at the next available run loop
+            iteration.
+            """
             self.last_execution_us = None
 
     #

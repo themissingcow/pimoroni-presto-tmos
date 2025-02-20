@@ -1,3 +1,11 @@
+v1.0.0-alpha.x
+==============
+
+## Improvements
+
+- Added `OS.Task.enqueue` to request the task is executed in the next
+  run loop.
+
 v1.0.0-alpha.3
 ==============
 
