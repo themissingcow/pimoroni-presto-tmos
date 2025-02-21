@@ -21,7 +21,8 @@ around paged displays of information.
 - [ ] Page-based window manager
   - [x] Programmatic page navigation
   - [x] Basic buttons with event callbacks
-  - [ ] Tabbed UI for page switching
+  - [x] Tabbed UI for page switching
+  - [ ] Themes with vector fonts
   - [ ] Brightness controls
   - [ ] Clock
 

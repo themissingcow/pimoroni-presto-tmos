@@ -10,7 +10,7 @@ from collections import namedtuple
 
 from picographics import PicoGraphics
 
-from tmos import OS, Region, MSG_INFO, MSG_FATAL, MSG_SEVERITY_NAMES
+from tmos import OS, Region, MSG_WARNING, MSG_SEVERITY_NAMES
 
 
 __all__ = [
@@ -107,6 +107,16 @@ class Theme:
     padding: int = 10
     """
     The preffered padding value to add around UI elements.
+    """
+
+    control_height: int
+    """
+    The preferred height for a control
+    """
+
+    systray_height: int = 30
+    """
+    The height of the systray, when visible.
     """
 
     def setup(self, display: PicoGraphics):
@@ -269,6 +279,34 @@ class Theme:
         display.set_pen(self.foreground_pen if is_pressed else self.background_pen)
         self.centered_text(display, region, title, scale=title_scale)
 
+    def draw_systray(self, display: PicoGraphics, region: Region):
+        """
+        Draws the systray region underneath any other controls.
+
+        :param display: The display to draw on.
+        :param region: The bounds of the systray region.
+        """
+
+    def draw_systray_page_button_frame(
+        self, display: PicoGraphics, region: Region, is_pressed: bool
+    ):
+        """
+        Draws the button frame for a systray page selector.
+
+        see: draw_button_frame
+        """
+        self.draw_button_frame(display, region, is_pressed)
+
+    def draw_systray_page_button_title(
+        self, display: PicoGraphics, region: Region, is_pressed: bool, title: str, title_scale: int
+    ):
+        """
+        Draws the button title for a systray page selector.
+
+        see: draw_button_title
+        """
+        self.draw_button_title(display, region, is_pressed, title, title_scale)
+
     def _text_scale(self, scale: int | None = None) -> int:
         """
         A helper to determine text scale to draw, taking an optional
@@ -294,6 +332,7 @@ class DefaultTheme(Theme):
         self.error_pen = display.create_pen(200, 0, 0)
         self.font = "bitmap8"
         self.line_height = 8
+        self.control_height = 3 * self.line_height
 
         self.default_font_scale = 4 if w > 240 else 2
 
@@ -580,11 +619,11 @@ class RadioButton(Control):
         :raises ValueError: If the supplied index is outside of the
           range of the controls options.
         """
-        if index < 0 or index >= len(self._options):
-            raise ValueError(f"Index {index} is out of range (0-{len(self._options)}")
-
         if index == self._current_index:
             return
+
+        if index < 0 or index >= len(self._options):
+            raise ValueError(f"Index {index} is out of range (0-{len(self._options)}")
 
         self._current_index = index
         for i, control in enumerate(self._controls):
@@ -600,6 +639,22 @@ class RadioButton(Control):
     def draw(self, display: PicoGraphics, theme: Theme):
         for button in self._controls:
             button.draw(display, theme)
+
+
+class SystrayPageButton(LatchingButton):
+    """
+    A LatchingButton with customised presentation for use in the systray
+    page selector.
+    """
+
+    def draw(self, display: PicoGraphics, theme: Theme):
+        scale = round(theme.default_font_scale * self.title_rel_scale)
+
+        theme.draw_systray_page_button_frame(display, self.region, self.__is_down)
+        if self.title:
+            theme.draw_systray_page_button_title(
+                display, self.region, self.__is_down, self.title, scale
+            )
 
 
 class Page:
@@ -712,6 +767,62 @@ class Page:
         """
 
 
+class _Systray(Page):
+    """
+    A (notionally private) page that presents a tabbed page
+    switcher, and in the future, other system control.
+    """
+
+    title = "Systray"
+
+    __pages: [Page] = []
+    __page_radio_button: RadioButton = None
+
+    def setup(self, region: Region, window_manager: "WindowManager"):
+        """
+        Ensure we have controls for the wm's pages, and they're in the
+        right place.
+        """
+
+        self._controls = []
+        self.__page_radio_button = None
+
+        self.__pages = window_manager.pages()
+        if not self.__pages:
+            return
+
+        titles = [p.title for p in self.__pages]
+
+        current_page_index = 0
+        if current_page := window_manager.current_page:
+            current_page_index = self.__pages.index(current_page)
+
+        def page_index_changed(new_index: int):
+            window_manager.set_current_page(self.__pages[new_index])
+
+        self.__page_radio_button = RadioButton(
+            region,
+            titles,
+            current_index=current_page_index,
+            title_rel_scale=0.5,
+            control_class=SystrayPageButton,
+        )
+        self.__page_radio_button.on_current_index_changed = page_index_changed
+
+        self._controls.append(self.__page_radio_button)
+
+    def set_current_page(self, page: Page):
+        """
+        Update which page is considered current.
+        """
+        if page not in self.__pages:
+            return
+
+        page_index = self.__pages.index(page)
+        if radio := self.__page_radio_button:
+            radio.set_current_index(page_index)
+
+
 class WindowManager:
     """
     Not really a "window" manager, but it fulfills notionally the same
@@ -731,7 +842,7 @@ class WindowManager:
     display: PicoGraphics
     theme: Theme
 
-    system_message_level = MSG_INFO
+    system_message_level = MSG_WARNING
 
     os: OS
 
@@ -741,9 +852,25 @@ class WindowManager:
     __last_page: Page = None
     __pages_need_setup: bool = True
 
+    __content_region: Region
+
+    __systray_visible: bool = None
+    __systray_position: str = "bottom"
+    __systray_region: Region
+
+    __systray_page: _Systray | None = None
+    __systray_needs_setup: bool = True
+    __systray_needs_update: bool = True
+
     __messages: []
 
-    def __init__(self, os_: OS, theme: Theme = None, display_system_messages=True):
+    def __init__(
+        self,
+        os_: OS,
+        theme: Theme = None,
+        display_system_messages=True,
+        systray_visible: bool = False,
+    ):
 
         self.__pages = []
         self.__page_tasks = {}
@@ -753,7 +880,7 @@ class WindowManager:
         self.theme = theme or DefaultTheme()
         self.theme.setup(self.display)
 
-        self.__set_content_region(Region(0, 0, *os_.display.get_bounds()))
+        self.set_systray_visible(systray_visible)
 
         # As we use the main os run loop to run pages (with their
         # respective intervals), we need to be first up so we can
@@ -773,14 +900,55 @@ class WindowManager:
 
     def __set_content_region(self, region: Region):
         self.__content_region = region
-        self.__pages_need_setup
+        self.__pages_need_setup = True
+
+    @property
+    def systray_region(self):
+        """
+        Determines the area of the display that can be used for the systray.
+        """
+        return self.__systray_region
+
+    def __set_systray_region(self, region: Region):
+        self.__systray_region = region
+        self.__systray_needs_setup = True
+
+    @property
+    def systray_position(self) -> bool:
+        return self.__systray_position
+
+    def set_systray_position(self, position: str):
+        if position == self.systray_position:
+            return
+        if position not in ("top", "bottom"):
+            raise ValueError(f"Unknown systray position '{position}', must be 'top' or 'bottom'")
+        self.__systray_position = position
+        self.__update_regions()
+
+    @property
+    def systray_visible(self) -> bool:
+        return self.__systray_visible
+
+    def set_systray_visible(self, is_visible: bool):
+        if is_visible == self.systray_visible:
+            return
+        self.__systray_visible = is_visible
+        self.__update_regions()
+
+    def __update_regions(self):
+        content_region, systray_region = self.__calculate_regions(
+            self.display, self.systray_visible, self.systray_position, self.theme
+        )
+        self.__set_content_region(content_region)
+        self.__set_systray_region(systray_region)
 
     def tick(self):
         """
         The main window manage tick callback, executed from the OS
-        runloop.
+        run loop.
         """
         self.__upadate_pages()
+        self.__update_systray()
 
     def update_display(self, *args, **kwargs):
         return self.os.update_display(*args, **kwargs)
@@ -829,6 +997,8 @@ class WindowManager:
         if make_current:
             self.set_current_page(page)
 
+        self.__pages_changed()
+
         self.os.post_message(f"Added page '{page.title}' (make_current: {make_current})")
 
     def remove_page(self, page: Page):
@@ -850,6 +1020,8 @@ class WindowManager:
         if self.__current_page is page:
             self.set_current_page(self.__pages[-1])
 
+        self.__pages_changed()
+
         self.os.post_message(f"Removed page '{page.title}'")
 
     def pages(self) -> [Page]:
@@ -870,6 +1042,7 @@ class WindowManager:
         if page not in self.__pages:
             raise ValueError(f"{page.title} is not a registered page")
         self.__current_page = page
+        self.__systray_needs_update = True
 
     def next_page(self):
         """
@@ -914,6 +1087,23 @@ class WindowManager:
         page.tick(self.content_region, self)
         self.display.remove_clip()
 
+    def __pages_changed(self):
+        """
+        Call whenever the page list changes.
+        """
+        self.__systray_needs_setup = True
+
+    def __tick_systray(self):
+        """
+        Updates the systray, ensuring the drawing region is clipped.
+        """
+        if not self.__systray_visible or not self.__systray_page:
+            return
+
+        self.display.set_clip(*self.__systray_region)
+        self.__systray_page.tick(self.__systray_region, self)
+        self.display.remove_clip()
+
     def __upadate_pages(self):
         """
         Handles the transition between current pages, calling the
@@ -932,6 +1122,9 @@ class WindowManager:
         if self.__pages_need_setup:
             for page in self.__pages:
                 page.setup(self.content_region, self)
+                # Make sure any long-interval tasks still run
+                # immediately Or their display will be out of sync.
+                self.__page_tasks[page].enqueue()
             self.__pages_need_setup = False
 
         if self.__current_page == self.__last_page:
@@ -948,3 +1141,50 @@ class WindowManager:
             task.active = page is self.__current_page
 
         self.__last_page = self.__current_page
+
+    def __update_systray(self):
+        """
+        Handles setup, configuration and update of systray state.
+        """
+        if self.__systray_needs_setup:
+            if self.systray_visible:
+                if not self.__systray_page:
+                    self.__systray_page = _Systray()
+                    self.os.add_task(self.__tick_systray)
+                self.__systray_page.setup(self.__systray_region, self)
+            else:
+                if self.__systray_page:
+                    self.__systray_page.teardown()
+                    self.os.remove_task(self.__tick_systray)
+                self.__systray_page = None
+
+        elif self.__systray_needs_update:
+            if self.__systray_page:
+                self.__systray_page.set_current_page(self.__current_page)
+
+        self.__systray_needs_setup = False
+        self.__systray_needs_update = False
+
+    @staticmethod
+    def __calculate_regions(
+        display: PicoGraphics, systray_visible: bool, systray_position: str, theme: Theme
+    ) -> (Region, Region):
+
+        display_width, display_height = display.get_bounds()
+
+        if not systray_visible:
+            return Region(0, 0, display_width, display_height), Region(0, 0, 0, 0)
+
+        content_height = display_height - theme.systray_height
+
+        if systray_position == "top":
+            content_y = theme.systray_height
+            systray_y = 0
+        else:  # "bottom"
+            content_y = 0
+            systray_y = display_height - theme.systray_height
+
+        return (
+            Region(0, content_y, display_width, content_height),
+            Region(0, systray_y, display_width, theme.systray_height),
+        )

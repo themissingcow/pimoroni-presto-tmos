@@ -1,6 +1,12 @@
 v1.0.0-alpha.x
 ==============
 
+## New Features
+
+- Added a "systray" to the `WindowManager`. This presents a list of
+  registered pages, and allows direct navigation between them. It can be
+  positioned at the top or the bottom of the screen and shrinks the page
+  content region accordingly.
 
 ## Improvements
 

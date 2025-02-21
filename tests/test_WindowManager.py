@@ -133,6 +133,7 @@ class Test_WindowManager_pages:
         expected_calls = [
             mock.call.setup(a_wm.content_region, a_wm),
             mock.ANY,
+            mock.ANY,
             mock.call.will_show(),
         ]
 
