@@ -32,46 +32,64 @@ class Test_LatchingButton_process_touch_state:
         assert a_test_button.is_down is False
         a_test_button.assert_events_called(down=False, up=False, cancel=False)
 
-    def test_when_up_and_touch_true_inside_then_button_is_down_and_down_event_triggered(
+    def test_when_up_and_touch_true_inside_then_button_is_up_and_no_event_triggered(
         self, a_test_button, a_touch_inside
     ):
         assert a_test_button.is_down is False
+        a_test_button.process_touch_state(a_touch_inside)
+        assert a_test_button.is_down is False
+        a_test_button.assert_events_called(down=False, up=False, cancel=False)
+
+    def test_when_up_and_touch_ended_inside_then_button_is_down_and_down_event_triggered(
+        self, a_test_button, a_touch_inside
+    ):
+        assert a_test_button.is_down is False
+        a_test_button.process_touch_state(a_touch_inside)
+        a_test_button.assert_events_called(down=False, up=False, cancel=False)
+        a_touch_inside.state = False
         a_test_button.process_touch_state(a_touch_inside)
         assert a_test_button.is_down is True
         a_test_button.assert_events_called(down=True, up=False, cancel=False)
 
-    def test_when_down_and_touch_true_inside_then_button_is_up_and_up_event_triggered(
+    def test_when_down_and_touch_true_inside_then_button_is_down_and_no_event_triggered(
         self, a_test_button, a_touch_inside
     ):
-        a_test_button.set_is_down(True)
-        a_test_button.reset_mock()
+        a_test_button.set_is_down(True, emit=False)
+        assert a_test_button.is_down is True
+        a_test_button.process_touch_state(a_touch_inside)
+        assert a_test_button.is_down is True
+        a_test_button.assert_events_called(down=False, up=False, cancel=False)
+
+    def test_when_down_and_touch_ended_inside_then_button_is_up_and_up_event_triggered(
+        self, a_test_button, a_touch_inside
+    ):
+        a_test_button.set_is_down(True, emit=False)
+        a_test_button.process_touch_state(a_touch_inside)
+        a_test_button.assert_events_called(down=False, up=False, cancel=False)
+        a_touch_inside.state = False
         a_test_button.process_touch_state(a_touch_inside)
         assert a_test_button.is_down is False
         a_test_button.assert_events_called(down=False, up=True, cancel=False)
 
-    def test_when_down_and_touch_reprocessed_then_button_is_down_and_no_event_triggered(
-        self, a_test_button, a_touch_inside
+    def test_when_up_and_touch_ended_outside_then_button_is_up_and_cancel_event_triggered(
+        self, a_test_button, a_touch_inside, a_touch_outside
     ):
-        a_test_button.process_touch_state(a_touch_inside)
-        # The button is now down, check events not re-triggered if
-        # updated again with same touch.
-        a_test_button.reset_mock()
-        a_test_button.process_touch_state(a_touch_inside)
-        assert a_test_button.is_down
-        a_test_button.assert_events_called(down=False, up=False, cancel=False)
-
-    def test_when_up_and_touch_reprocessed_then_button_is_up_and_no_event_triggered(
-        self, a_test_button, a_touch_inside
-    ):
-        a_test_button.set_is_down(True)
-        a_test_button.process_touch_state(a_touch_inside)
-        # The button is now up, check events not re-triggered if
-        # updated again with same touch.
-        a_test_button.reset_mock()
+        assert a_test_button.is_down is False
         a_test_button.process_touch_state(a_touch_inside)
         assert a_test_button.is_down is False
-        a_test_button.assert_events_called(down=False, up=False, cancel=False)
+        a_test_button.process_touch_state(a_touch_outside)
+        assert a_test_button.is_down is False
+        a_test_button.assert_events_called(down=False, up=False, cancel=True)
 
+    def test_when_down_and_touch_ended_outside_then_button_is_down_and_cancel_event_triggered(
+        self, a_test_button, a_touch_inside, a_touch_outside
+    ):
+        a_test_button.set_is_down(True, emit=False)
+        a_test_button.process_touch_state(a_touch_inside)
+        assert a_test_button.is_down is True
+        a_test_button.process_touch_state(a_touch_outside)
+        assert a_test_button.is_down is True
+        a_test_button.assert_events_called(down=False, up=False, cancel=True)
 
 @pytest.fixture
 def a_region():
@@ -112,7 +130,7 @@ def a_test_button(a_region):
 
 
 @pytest.fixture
-def mock_touch():
+def mock_touch_factory():
     """
     Provides a mock touch data structure
     """
@@ -125,11 +143,12 @@ def mock_touch():
         x2 = 0
         y2 = 0
 
-    return State()
+    return State
 
 
 @pytest.fixture
-def a_touch_outside(a_test_button, mock_touch):
+def a_touch_outside(a_test_button, mock_touch_factory):
+    mock_touch = mock_touch_factory()
     mock_touch.state = True
     mock_touch.x = a_test_button.region.x - 1
     mock_touch.y = a_test_button.region.y - 1
@@ -137,7 +156,8 @@ def a_touch_outside(a_test_button, mock_touch):
 
 
 @pytest.fixture
-def a_touch_inside(a_test_button, mock_touch):
+def a_touch_inside(a_test_button, mock_touch_factory):
+    mock_touch = mock_touch_factory()
     mock_touch.state = True
     mock_touch.x = a_test_button.region.x + 1
     mock_touch.y = a_test_button.region.y + 1

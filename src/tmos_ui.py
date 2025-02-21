@@ -419,19 +419,20 @@ class MomentaryButton(_Button):
     def process_touch_state(self, touch):
 
         touch_active = touch.state
-        touch_is_inside = touch_active and is_within(self.region, touch.x, touch.y)
-        is_down = self.is_down
-        self.set_is_down(touch_is_inside, emit=False)
+        touch_active_inside = touch_active and is_within(self.region, touch.x, touch.y)
 
-        if touch_is_inside:
-            if not is_down:
+        was_down = self.is_down
+        self.set_is_down(touch_active_inside, emit=False)
+
+        if touch_active_inside:
+            if not was_down:
                 self._event("on_button_down")
         else:
             if not touch_active:
                 # Touch ended within our region
-                if is_down:
+                if was_down:
                     self._event("on_button_up")
-            elif is_down:
+            elif was_down:
                 # The touch has moved out side our area, we don't count
                 # this as a button up as its a common way to 'cancel' a
                 # press.
@@ -446,22 +447,32 @@ class LatchingButton(_Button):
     a touch enters the button region.
     """
 
-    _last_touch_state = None
+    _last_touch_was_active_inside = None
 
     def process_touch_state(self, touch):
 
+        # This duplicates a lot from MomentaryButton, but parametrising
+        # latching/momentary made the code harder to read.
+
         touch_active = touch.state
-        touch_is_inside = touch_active and is_within(self.region, touch.x, touch.y)
+        touch_active_inside = touch_active and is_within(self.region, touch.x, touch.y)
 
         # De-bounce, so we don't toggle every time we process touches
-        if touch_is_inside == self._last_touch_state:
+        if touch_active_inside == self._last_touch_was_active_inside:
             return
 
-        self._last_touch_state = touch_is_inside
+        touch_was_inside = self._last_touch_was_active_inside
+        self._last_touch_was_active_inside = touch_active_inside
 
-        if touch_is_inside:
-            was_on = self.is_down
-            self.set_is_down(not was_on)
+        # update after the touch, to allow cancellation
+        if touch_was_inside:
+            if not touch_active:
+                # The touch ended within our bounds
+                was_on = self.is_down
+                self.set_is_down(not was_on)
+            else:
+                # The touch ended outside
+                self._event("on_button_cancel")
 
 
 class RadioButton(Control):
