@@ -26,6 +26,9 @@ These are added in explicit order in the main run loop (see __tick),
 around user specified tasks to ensure consistent order of operations and
 state management.
 """
+
+# This is a monstrous single-file module to make deployment easier.
+
 import sys
 import time
 

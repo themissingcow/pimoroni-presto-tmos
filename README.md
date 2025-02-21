@@ -10,6 +10,9 @@ A basic single-tasking "OS" for the [Pimoroni Presto](https://shop.pimoroni.com/
 It hopes to simplify writing simple interactive applications based
 around paged displays of information.
 
+It consists of a couple of single-file modules, to make deployment
+to devices easier.
+
 ## Features
 
 - [x] RTC clock sync (requires WiFI)
@@ -76,4 +79,4 @@ os.add_task(clock, execution_frequency=1)
 os.boot(wifi=True, use_ntp=True, run=True)
 ```
 
-See the [examples](examples) more.
+See the [examples](examples) for more.

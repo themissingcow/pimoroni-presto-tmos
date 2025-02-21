@@ -3,7 +3,12 @@
 
 """
 The Missing "OS": UI Layer
+
+TODO: Document the architecture of the UI Layer
 """
+
+# This is a monstrous single-file module to make deployment easier.
+
 import math
 
 from collections import namedtuple
