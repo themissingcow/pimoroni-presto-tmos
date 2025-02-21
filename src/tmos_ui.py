@@ -311,6 +311,9 @@ class Control:
     Controls usually have one or more on_* attributes, that can be set
     to a callable, that should be invoked upon specific state
     transitions of the control.
+
+    Unless otherwise noted, it is allowed to modify a control's state in
+    an event callback.
     """
 
     def process_touch_state(self, touch):
@@ -629,7 +632,15 @@ class Page:
         self._controls = []
 
     def setup(self, region: Region, window_manager: "WindowManager"):
-        pass
+        """
+        Called whenever the pages content region changes (and when the
+        page is first shown).
+
+        This is an opportunity to create any persistent controls, and
+        perform any other house keeping. Not that this may be called
+        multiple times during the lifetime of the page, should its
+        available region change for any reason.
+        """
 
     def will_show(self):
         """
@@ -702,6 +713,20 @@ class Page:
 
 
 class WindowManager:
+    """
+    Not really a "window" manager, but it fulfills notionally the same
+    role as one.
+
+    The WindowManager tracks and manages multiple pages, but only a
+    single page is presented to the user a one time. Methods are exposed
+    to Programmatically manipulate the current page, as well as an
+    optional 'systray' that presents a page switching interface to the
+    user.
+
+    In addition, system level messages will be drawn as full screen
+    overlay if they are of a severity equal or greater  to
+    system_message_level.
+    """
 
     display: PicoGraphics
     theme: Theme
