@@ -108,24 +108,8 @@ def a_test_button(a_region):
 
 
 @pytest.fixture
-def mock_touch():
-    """
-    Provides a mock touch data structure
-    """
-
-    class State:
-        state = False
-        x = 0
-        y = 0
-        state2 = False
-        x2 = 0
-        y2 = 0
-
-    return State()
-
-
-@pytest.fixture
-def a_touch_outside(a_test_button, mock_touch):
+def a_touch_outside(a_test_button, mock_touch_factory):
+    mock_touch = mock_touch_factory()
     mock_touch.state = True
     mock_touch.x = a_test_button.region.x - 1
     mock_touch.y = a_test_button.region.y - 1
@@ -133,7 +117,8 @@ def a_touch_outside(a_test_button, mock_touch):
 
 
 @pytest.fixture
-def a_touch_inside(a_test_button, mock_touch):
+def a_touch_inside(a_test_button, mock_touch_factory):
+    mock_touch = mock_touch_factory()
     mock_touch.state = True
     mock_touch.x = a_test_button.region.x + 1
     mock_touch.y = a_test_button.region.y + 1

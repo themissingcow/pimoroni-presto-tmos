@@ -91,6 +91,7 @@ class Test_LatchingButton_process_touch_state:
         assert a_test_button.is_down is True
         a_test_button.assert_events_called(down=False, up=False, cancel=True)
 
+
 @pytest.fixture
 def a_region():
     return Region(10, 20, 100, 200)
@@ -127,23 +128,6 @@ def a_test_button(a_region):
 
     b.reset_mock = reset_mock
     return b
-
-
-@pytest.fixture
-def mock_touch_factory():
-    """
-    Provides a mock touch data structure
-    """
-
-    class State:
-        state = False
-        x = 0
-        y = 0
-        state2 = False
-        x2 = 0
-        y2 = 0
-
-    return State
 
 
 @pytest.fixture

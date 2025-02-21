@@ -17,7 +17,9 @@ __all__ = [
     "Control",
     "DefaultTheme",
     "Page",
-    "PushButton",
+    "MomentaryButton",
+    "LatchingButton",
+    "RadioButton",
     "Theme",
     "WindowManager",
     "is_within",
@@ -484,6 +486,8 @@ class RadioButton(Control):
 
     region: Region
 
+    control_class: LatchingButton
+
     on_current_index_changed = None
     """
     A callable that will be invoked when the currently acrtive index is
@@ -500,6 +504,7 @@ class RadioButton(Control):
         options: [str],
         current_index: int = 0,
         title_rel_scale: float = 1.0,
+        control_class: LatchingButton = LatchingButton,
     ) -> None:
         """
         Constructs a new RadioButton.
@@ -519,6 +524,7 @@ class RadioButton(Control):
 
         self._options = options
         self._controls = []
+        self.control_class = control_class
 
         option_width = region.width // len(options)
         for i, option in enumerate(options):
@@ -534,7 +540,7 @@ class RadioButton(Control):
         """
         Creates the control for each option of the control.
         """
-        button = LatchingButton(region, title, *args)
+        button = self.control_class(region, title, *args)
         button.on_button_down = lambda: self.set_current_index(index)
 
         def disallow_off_if_current():

@@ -83,3 +83,20 @@ def mock_ntptime_module():
     """
     mock_ntptime.settime.reset_mock()
     return mock_ntptime
+
+@pytest.fixture
+def mock_touch_factory():
+    """
+    Provides a mock touch data structure
+    """
+
+    class State:
+        state = False
+        x = 0
+        y = 0
+        state2 = False
+        x2 = 0
+        y2 = 0
+
+    return State
+

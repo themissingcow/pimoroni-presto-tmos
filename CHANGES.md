@@ -1,6 +1,7 @@
 v1.0.0-alpha.x
 ==============
 
+
 ## Improvements
 
 - Added `OS.Task.enqueue` to request the task is executed in the next
@@ -8,6 +9,8 @@ v1.0.0-alpha.x
 - `LatchingButton` now updates on touch-end to allow the control to be
   left in a unchanged state by ending the touch outside of the control.
   It now calls on_button_cancel in that situation.
+- A custom control class can now be provided to the `RadioButton`
+  constructor, making it easier to customise presentation.
 
 v1.0.0-alpha.3
 ==============
