@@ -7,6 +7,8 @@ v1.0.0-alpha.x
   registered pages, and allows direct navigation between them. It can be
   positioned at the top or the bottom of the screen and shrinks the page
   content region accordingly.
+- Pages can now an update in the next run loop by setting their
+  `needs_update` attribute to True.
 
 ## Improvements
 

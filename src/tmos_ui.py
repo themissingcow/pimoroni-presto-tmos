@@ -686,6 +686,12 @@ class Page:
     up to this rate, it may be slower if the system is busy.
     """
 
+    needs_update: bool = False
+    """
+    Set to True if the page needs an update in the next available run
+    loop cycle.
+    """
+
     _controls: [Control]
 
     def __init__(self) -> None:
@@ -1123,6 +1129,12 @@ class WindowManager:
         # first in the list. Shouldn't be a problem in common scenarios,
         # but would be nice to make this stable. Worst case it the new
         # page doesn't update until the next tick...
+
+        for page in self.__pages:
+            if not page.needs_update:
+                continue
+            page.needs_update = False
+            self.__page_tasks[page].enqueue()
 
         if self.__pages_need_setup:
             for page in self.__pages:

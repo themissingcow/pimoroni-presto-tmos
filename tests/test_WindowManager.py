@@ -124,6 +124,9 @@ class Test_WindowManager_pages:
         page_task = next(filter(lambda t: t not in prev_tasks, a_wm.os.tasks()))
         assert page_task.execution_interval_us == expected_interval
 
+    def test_when_page_needs_update_then_called_in_next_run_loop(self, a_wm, a_mock_page):
+        pytest.skip("Need to figure out a nice way to test this")
+
     def test_when_run_then_page_setup_called_before_will_show(self, a_wm, a_mock_page):
 
         a_wm.add_page(a_mock_page, make_current=True)
@@ -304,6 +307,7 @@ def a_mock_page():
     mock_page = mock.create_autospec(Page)
     mock_page.execution_frequency = None
     mock_page.title = "Mock Page"
+    mock_page.needs_update = False
     return mock_page
 
 
