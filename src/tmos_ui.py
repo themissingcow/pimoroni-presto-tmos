@@ -330,7 +330,7 @@ class DefaultTheme(Theme):
 
     def setup(self, display: PicoGraphics):
 
-        w, h = display.get_bounds()
+        w, _ = display.get_bounds()
 
         self.foreground_pen = display.create_pen(0, 0, 0)
         self.background_pen = display.create_pen(255, 255, 255)
@@ -338,8 +338,13 @@ class DefaultTheme(Theme):
         self.font = "bitmap8"
         self.line_height = 8
         self.control_height = 3 * self.line_height
+        self.default_font_scale = 2
+        self.systray_height = 30
 
-        self.default_font_scale = 4 if w > 240 else 2
+        if w > 240:
+            self.default_font_scale *= 2
+            self.control_height *= 2
+            self.systray_height *= 2
 
 
 class Control:
