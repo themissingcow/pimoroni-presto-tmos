@@ -20,6 +20,7 @@ to devices easier.
 - [x] Message handers
 - [x] Task execution with adjustable update frequency
   - [x] Touches cause immediate updates (optional)
+  - [ ] Async tasks
 - [x] Timeout based display backlight / Glow LED dimming and sleep
 - [ ] Page-based window manager
   - [x] Programmatic page navigation
