@@ -11,6 +11,11 @@ v1.0.0-alpha.x
 
 ## New Features
 
+- Added experimental support for af fonts. A themes font can be set to
+  the name of a `.af` font file, which will switch rendering to
+  PicoVector. When using af fonts, the scale is set in pixels. NOTE:
+  Rendering has been known to fail after a few minutes of updates, use
+  standard PicoGraphics fonts if you need plain sailing.
 - Added a "systray" to the `WindowManager`. This presents a list of
   registered pages, and allows direct navigation between them. It can be
   positioned at the top or the bottom of the screen and shrinks the page

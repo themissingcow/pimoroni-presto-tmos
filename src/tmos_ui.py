@@ -15,6 +15,9 @@ from collections import namedtuple
 
 from picographics import PicoGraphics
 
+import picovector
+from picovector import PicoVector
+
 from tmos import OS, Region, MSG_WARNING, MSG_SEVERITY_NAMES
 
 
@@ -66,12 +69,17 @@ class Theme:
     A theme can be used for it's palette, and to draw on-screen graphics
     consistently.
 
-    Themes are responsible for drawing well-known WindowManager controls and UI elements. If
-    extending these, use the drawing mechanisms exposed by the theme if you want them to match
-    other elements.
+    Themes are responsible for drawing well-known WindowManager controls
+    and UI elements. If extending these, use the drawing mechanisms
+    exposed by the theme if you want them to match other elements.
 
-    Use the base picographcs APIs if full flexibility is
-    required.
+    Use the base picographcs APIs if full flexibility is required.
+
+    Themes support bitmap and vector fonts. If the font name ends with
+    ".af" then it will be rendered using PicoVector.
+
+    NOTE: Vector font support is experimental. Rendering can fail over
+    time. This has not been seen with bitmap fonts.
     """
 
     foreground_pen: int
@@ -92,8 +100,8 @@ class Theme:
 
     font: str
     """
-    A PicoGraphics.set_font compatible font name (af fonts are not
-    currently supported).
+    A PicoGraphics.set_font compatible font name. If the font name ends
+    with "af" then the PicoVector library will be used.
     """
 
     base_font_scale: int
@@ -113,7 +121,7 @@ class Theme:
 
     padding: int = 10
     """
-    The preffered padding value to add around UI elements.
+    The preferred padding value to add around UI elements.
     """
 
     control_height: int
@@ -126,6 +134,9 @@ class Theme:
     The height of the systray, when visible.
     """
 
+    _use_vector_font_rendering: bool = False
+    _vector: PicoVector = None
+
     def setup(self, display: PicoGraphics):
         """
         Configures the theme for the supplied display.
@@ -136,8 +147,22 @@ class Theme:
         This should be implemented by a theme to  initialise pens,
         fonts, and other properties appropriately for the supplied
         display.
+
+        The base class implementation must be called.
         """
-        raise NotImplementedError("Theme must implement setup")
+        self._vector = self._create_picovector(display)
+
+        self._use_vector_font_rendering = self.font.endswith(".af")
+        if self._use_vector_font_rendering:
+            self._vector.set_font(self.font, self.base_font_scale)
+        else:
+            display.set_font(self.font)
+
+    def _create_picovector(self, display: PicoGraphics) -> PicoVector:
+        vector = PicoVector(display)
+        vector.set_transform(picovector.Transform())
+        vector.set_antialiasing(picovector.ANTIALIAS_BEST)
+        return vector
 
     def text_scale(self, rel_scale: float = 1) -> int:
         """
@@ -166,6 +191,32 @@ class Theme:
         ratio = self.text_scale(rel_scale) / self.base_font_scale
         return int(round(self.base_line_height * ratio))
 
+    def measure_text(self, display: PicoGraphics, text: str, rel_scale: float = 1) -> (int, int):
+        """
+        Approximates the bounding box for the specified text, at a scale
+        relative to the themes base_font_scale.
+
+        Note: for bitmap fonts, height is approximated by the line
+        height.
+
+        This method bridges PicoGraphics and PicoVectors measurement
+        methods.
+
+        :param text: The text to measure
+        :param rel_scale: The scale relative to the themes base_font_scale.
+        :return: Approximate width, height of the texts bounds.
+        """
+        if self._use_vector_font_rendering:
+            self._vector.set_font_size(self.text_scale(rel_scale))
+            # We ignore the height as its the bbox of the actual text,
+            # which consequently changes if you have descenders or not.
+            _, __, w, ___ = self._vector.measure_text(text)
+            w = int(w)
+        else:
+            w = display.measure_text(text, self.text_scale(rel_scale))
+        h = self.line_spacing(rel_scale)
+        return w, h
+
     def clear_display(self, display: PicoGraphics, region: Region = None, set_fg_pen: bool = True):
         """
         Clears the display using the background_pen, and re-sets
@@ -186,7 +237,14 @@ class Theme:
             display.set_pen(self.foreground_pen)
 
     def text(
-        self, display: PicoGraphics, text: str, *args, rel_scale: float = 1.0, **kwargs
+        self,
+        display: PicoGraphics,
+        text: str,
+        x: int,
+        y: int,
+        *args,
+        rel_scale: float = 1.0,
+        **kwargs,
     ):
         """
         Draws text, additional args as pre PicoGraphics.text.
@@ -198,7 +256,12 @@ class Theme:
         :param rel_scale: Scales the themes base_font_scale by this amount.
         :param text: The string to render.
         """
-        display.text(text, *args, scale=self.text_scale(rel_scale), **kwargs)
+        if self._use_vector_font_rendering:
+            self._vector.set_font_size(self.text_scale(rel_scale))
+            y += int(self.line_spacing(rel_scale) * 0.75)
+            self._vector.text(text, x, y)
+        else:
+            display.text(text, x, y, *args, scale=self.text_scale(rel_scale), **kwargs)
 
     def centered_text(
         self,
@@ -214,8 +277,7 @@ class Theme:
 
         See @text for other args.
         """
-        height = self.line_spacing(rel_scale)
-        text_width = display.measure_text(text, self.text_scale(rel_scale))
+        text_width, height = self.measure_text(display, text, rel_scale)
 
         cx = region.x + (region.width // 2)
         cy = region.y + (region.height // 2)
@@ -259,12 +321,11 @@ class Theme:
             # TODO: The +1 is for a fudge for the fact that
             # we're calculating character wrap not word wrap
             # It's super inaccurate though.
-            scale = self.text_scale(rel_scale)
-            text_width = display.measure_text(message, scale)
+            text_width, _ = self.measure_text(display, message, rel_scale)
             num_lines = math.ceil(text_width / wrap_width)
             if num_lines > 1:
                 num_lines += 1
-            offset += self.line_spacing(scale) * num_lines
+            offset += self.line_spacing(rel_scale) * num_lines
             # Skip anything that would run off the edge entirely
             if offset > region.height:
                 break
@@ -354,7 +415,7 @@ class DefaultTheme(Theme):
         self.error_pen = display.create_pen(200, 0, 0)
         self.font = "bitmap8"
         self.base_font_scale = 1
-        self.base_line_height = 10 * self.base_font_scale
+        self.base_line_height = 10
         self.control_height = 3 * self.base_line_height
         self.systray_height = 30
 
@@ -363,6 +424,8 @@ class DefaultTheme(Theme):
             self.base_line_height *= 2
             self.control_height *= 2
             self.systray_height *= 2
+
+        super().setup(display)
 
 
 class Control:
