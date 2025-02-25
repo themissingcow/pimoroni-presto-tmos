@@ -1,6 +1,14 @@
 v1.0.0-alpha.x
 ==============
 
+## Breaking Changes
+
+- Refactored font scaling in `Theme`. `default_font_scale` is now
+  `base_font_scale` and all text related calls now take a `rel_scale`
+  parameter, that multiplies this. `line_height` is now
+  `base_line_height`, and is the size of a line when `base_font_scale`
+  is used for rendering.
+
 ## New Features
 
 - Added a "systray" to the `WindowManager`. This presents a list of
@@ -9,6 +17,8 @@ v1.0.0-alpha.x
   content region accordingly.
 - Pages can now an update in the next run loop by setting their
   `needs_update` attribute to True.
+- Added `Theme.text_scale` that will return the absolute font scale used
+  by the theme, factoring in an optional `rel_scale`.
 
 ## Improvements
 

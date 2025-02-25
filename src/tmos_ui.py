@@ -96,17 +96,19 @@ class Theme:
     currently supported).
     """
 
-    default_font_scale: int
+    base_font_scale: int
     """
-    The default font scale to use for drawing text.
+    The base font scale to use for drawing text. Scales specified to
+    draw calls are relative to this size.
     """
 
-    line_height: int
+    base_line_height: int
     """
-    The height of a line (in pixels) for a font-scale of 1.
+    The height of a line (in pixels) for text at the base size/scale.
 
-    Eg, for "bitmap8", set a value near 10, regardless of the value of
-    default_font_scale.
+    Making this larger than the text simulates an increased line height.
+    Note: This is not considered when long text is rendered using
+    wordwrap.
     """
 
     padding: int = 10
@@ -137,19 +139,32 @@ class Theme:
         """
         raise NotImplementedError("Theme must implement setup")
 
-    def line_spacing(self, scale: int | None = None) -> int:
+    def text_scale(self, rel_scale: float = 1) -> int:
         """
-        Determines the line height of the themes text. This can be used to ensure multiple draw
-        calls are spaced appropriately.
+        A helper to determine text scale to draw, taking an optional
+        scale factor on the base theme font scale.
 
-        This factors in the themes default_font_scale if a custom scale
-        is not specified.
+        The return of this function will never be less than one.
 
-        :param scale: The scale of text to be drawn, overriding the
-          themes default_font_scale.
+        :param rel_scale: A custom scale that multiplies the themes default.
+        :return: The text scale to use, rounded to the nearest integer.
+        """
+        return int(max(1, round(self.base_font_scale * rel_scale)))
+
+    def line_spacing(self, rel_scale: float = 1) -> int:
+        """
+        Determines the line height of the themes text. This can be used
+        to ensure multiple draw calls are spaced appropriately.
+
+        This factors in the themes base_font_scale and a relative scale
+        if specified, using the same rounding logic as text_scale.
+
+        :param rel_scale: The scale of text to be drawn, relative to the
+          themes base_font_scale.
         :return: The preferred line height in pixels, including spacing.
         """
-        return self.line_height * (scale or self.default_font_scale)
+        ratio = self.text_scale(rel_scale) / self.base_font_scale
+        return int(round(self.base_line_height * ratio))
 
     def clear_display(self, display: PicoGraphics, region: Region = None, set_fg_pen: bool = True):
         """
@@ -170,7 +185,9 @@ class Theme:
         if set_fg_pen:
             display.set_pen(self.foreground_pen)
 
-    def text(self, display: PicoGraphics, text: str, *args, scale: int | None = None, **kwargs):
+    def text(
+        self, display: PicoGraphics, text: str, *args, rel_scale: float = 1.0, **kwargs
+    ):
         """
         Draws text, additional args as pre PicoGraphics.text.
 
@@ -178,10 +195,10 @@ class Theme:
         PicoGraphics, rendering will not respect the themes line_height.
 
         :param display: The display on which to draw the text.
-        :param scale: Overrides the themes default_font_scale.
-        :param text:  The string to render.
+        :param rel_scale: Scales the themes base_font_scale by this amount.
+        :param text: The string to render.
         """
-        display.text(text, *args, scale=self._text_scale(scale), **kwargs)
+        display.text(text, *args, scale=self.text_scale(rel_scale), **kwargs)
 
     def centered_text(
         self,
@@ -189,7 +206,7 @@ class Theme:
         region: Region,
         text: str,
         *args,
-        scale: int | None = None,
+        rel_scale: float = 1,
         **kwargs,
     ):
         """
@@ -197,9 +214,8 @@ class Theme:
 
         See @text for other args.
         """
-        scale = self._text_scale(scale)
-        height = self.line_spacing(scale)
-        text_width = display.measure_text(text, scale)
+        height = self.line_spacing(rel_scale)
+        text_width = display.measure_text(text, self.text_scale(rel_scale))
 
         cx = region.x + (region.width // 2)
         cy = region.y + (region.height // 2)
@@ -207,10 +223,10 @@ class Theme:
         x = cx - (text_width // 2)
         y = cy - (height // 2)
 
-        self.text(display, text, x, y, *args, scale=scale, **kwargs)
+        self.text(display, text, x, y, *args, rel_scale=rel_scale, **kwargs)
 
     def draw_strings(
-        self, display: PicoGraphics, messages: [str], region: Region, scale: int | None = None
+        self, display: PicoGraphics, messages: [str], region: Region, rel_scale: float = 1
     ):
         """
         Draws multiple, multi-line strings in order.
@@ -224,7 +240,6 @@ class Theme:
         self.clear_display(display, region)
 
         wrap_width = region.width - (2 * self.padding)
-        scale = self._text_scale(scale)
 
         offset = 0
 
@@ -237,13 +252,14 @@ class Theme:
                 region.x + self.padding,
                 region.y + self.padding + offset,
                 wrap_width,
-                scale=scale,
+                rel_scale=rel_scale,
             )
             # Work out how many lines we consumed, measure_text only
             # gives a width.
             # TODO: The +1 is for a fudge for the fact that
             # we're calculating character wrap not word wrap
             # It's super inaccurate though.
+            scale = self.text_scale(rel_scale)
             text_width = display.measure_text(message, scale)
             num_lines = math.ceil(text_width / wrap_width)
             if num_lines > 1:
@@ -270,7 +286,12 @@ class Theme:
 
     # pylint: disable=too-many-arguments
     def draw_button_title(
-        self, display: PicoGraphics, region: Region, is_pressed: bool, title: str, title_scale: int
+        self,
+        display: PicoGraphics,
+        region: Region,
+        is_pressed: bool,
+        title: str,
+        title_rel_scale: int,
     ):
         """
         Draws the frame/background for an on-screen "button"
@@ -279,10 +300,11 @@ class Theme:
         :param region: The bounds of the button.
         :param is_pressed: Whether the button is currently pressed.
         :param title: The button title.
-        :param title_scale: The font scale to draw the title with.
+        :param title_rel_scale: The relative font scale to draw the
+          title with.
         """
         display.set_pen(self.foreground_pen if is_pressed else self.background_pen)
-        self.centered_text(display, region, title, scale=title_scale)
+        self.centered_text(display, region, title, rel_scale=title_rel_scale)
 
     def draw_systray(self, display: PicoGraphics, region: Region):
         """
@@ -303,24 +325,19 @@ class Theme:
         self.draw_button_frame(display, region, is_pressed)
 
     def draw_systray_page_button_title(
-        self, display: PicoGraphics, region: Region, is_pressed: bool, title: str, title_scale: int
+        self,
+        display: PicoGraphics,
+        region: Region,
+        is_pressed: bool,
+        title: str,
+        title_rel_scale: int,
     ):
         """
         Draws the button title for a systray page selector.
 
         see: draw_button_title
         """
-        self.draw_button_title(display, region, is_pressed, title, title_scale)
-
-    def _text_scale(self, scale: int | None = None) -> int:
-        """
-        A helper to determine text scale to draw, taking an optional
-        override.
-
-        :param scale: A custom scale that overrides the themes default.
-        :return: The text scale to use.
-        """
-        return scale or self.default_font_scale
+        self.draw_button_title(display, region, is_pressed, title, title_rel_scale=title_rel_scale)
 
 
 class DefaultTheme(Theme):
@@ -336,13 +353,14 @@ class DefaultTheme(Theme):
         self.background_pen = display.create_pen(255, 255, 255)
         self.error_pen = display.create_pen(200, 0, 0)
         self.font = "bitmap8"
-        self.line_height = 8
-        self.control_height = 3 * self.line_height
-        self.default_font_scale = 2
+        self.base_font_scale = 1
+        self.base_line_height = 10 * self.base_font_scale
+        self.control_height = 3 * self.base_line_height
         self.systray_height = 30
 
         if w > 240:
-            self.default_font_scale *= 2
+            self.base_font_scale *= 2
+            self.base_line_height *= 2
             self.control_height *= 2
             self.systray_height *= 2
 
@@ -454,11 +472,12 @@ class _Button(Control):
             self._event("on_button_down" if is_down else "on_button_up")
 
     def draw(self, display: PicoGraphics, theme: Theme):
-        scale = round(theme.default_font_scale * self.title_rel_scale)
 
         theme.draw_button_frame(display, self.region, self.__is_down)
         if self.title:
-            theme.draw_button_title(display, self.region, self.__is_down, self.title, scale)
+            theme.draw_button_title(
+                display, self.region, self.__is_down, self.title, self.title_rel_scale
+            )
 
 
 class MomentaryButton(_Button):
@@ -658,12 +677,10 @@ class SystrayPageButton(LatchingButton):
     """
 
     def draw(self, display: PicoGraphics, theme: Theme):
-        scale = round(theme.default_font_scale * self.title_rel_scale)
-
         theme.draw_systray_page_button_frame(display, self.region, self.__is_down)
         if self.title:
             theme.draw_systray_page_button_title(
-                display, self.region, self.__is_down, self.title, scale
+                display, self.region, self.__is_down, self.title, self.title_rel_scale
             )
 
 
@@ -820,7 +837,6 @@ class _Systray(Page):
             region,
             titles,
             current_index=current_page_index,
-            title_rel_scale=0.5,
             control_class=SystrayPageButton,
         )
         self.__page_radio_button.on_current_index_changed = page_index_changed

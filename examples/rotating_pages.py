@@ -40,7 +40,7 @@ class PageWithTime(Page):
 
         # Make a button on the bottom left to change to the prev page
         prev_region = Region(region.x + padding, btn_y, btn_width, btn_height)
-        prev_btn = MomentaryButton(prev_region, "Prev")
+        prev_btn = MomentaryButton(prev_region, "Prev", title_rel_scale=2)
         # Buttons events can call functions when activated via touch.
         # This is handled by the os, so we don't have to check button
         # state ourselves. By default, regardless of the update
@@ -56,7 +56,7 @@ class PageWithTime(Page):
         # Make a button on the bottom right to change to the next page
         next_btn_x = region.x + padding + btn_width + padding
         next_region = Region(next_btn_x, btn_y, btn_width, btn_height)
-        next_tn = MomentaryButton(next_region, "Next")
+        next_tn = MomentaryButton(next_region, "Next", title_rel_scale=2)
         next_tn.on_button_up = window_manager.next_page
         self._controls.append(next_tn)
 
@@ -76,9 +76,9 @@ class PageWithTime(Page):
         theme.clear_display(display, region)
         # Make sure we draw within the specified region, which might not
         # be the whole screen, or have an origin at 0, 0.
-        theme.text(display, self.title, *to_screen(region, p, p))
+        theme.text(display, self.title, *to_screen(region, p, p), rel_scale=2)
         theme.text(
-            display, f" @ {time.ticks_ms()}", *to_screen(region, p, p + theme.line_spacing())
+            display, f" @ {time.ticks_ms()}", *to_screen(region, p, p + theme.line_spacing(2))
         )
 
 

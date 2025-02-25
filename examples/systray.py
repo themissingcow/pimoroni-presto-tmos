@@ -44,6 +44,7 @@ class ClockPage(Page):
             display,
             f"{day:02d}/{month:02d}/{year} {hours:02d}:{mins:02d}:{secs:02d}",
             *to_screen(region, p, p),
+            rel_scale=2,
         )
 
 
@@ -60,7 +61,7 @@ class TextPage(Page):
         p = theme.padding
 
         theme.clear_display(display, region)
-        theme.text(display, "The\nCat\nsat\non\the\nMat", *to_screen(region, p, p))
+        theme.text(display, "The\nCat\nsat\non\the\nMat", *to_screen(region, p, p), rel_scale=2)
 
 
 class SetupPage(Page):
@@ -133,13 +134,12 @@ class SetupPage(Page):
         p = theme.padding
 
         theme.clear_display(display, region)
-        theme.text(display, "Systray Setup", *to_screen(region, p, p))
+        theme.text(display, "Systray Setup", *to_screen(region, p, p), rel_scale=2)
 
         theme.text(
             display,
             "See me adjust my position",
-            *to_screen(region, p, region.height - p - theme.line_height),
-            scale=1,
+            *to_screen(region, p, region.height - p - theme.base_line_height),
         )
 
 
