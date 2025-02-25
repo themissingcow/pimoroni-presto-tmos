@@ -27,6 +27,7 @@ v1.0.0-alpha.x
 
 ## Improvements
 
+- The systray now only ticks once per second unless an update is needed.
 - Added `OS.Task.enqueue` to request the task is executed in the next
   run loop.
 - `LatchingButton` now updates on touch-end to allow the control to be

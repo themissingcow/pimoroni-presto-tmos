@@ -917,6 +917,8 @@ class _Systray(Page):
         if radio := self.__page_radio_button:
             radio.set_current_index(page_index)
 
+        self.needs_update = True
+
 
 class WindowManager:
     """
@@ -954,6 +956,7 @@ class WindowManager:
     __systray_region: Region
 
     __systray_page: _Systray | None = None
+    __systray_task: OS.Task = None
     __systray_needs_setup: bool = True
     __systray_needs_update: bool = True
 
@@ -1251,12 +1254,15 @@ class WindowManager:
             if self.systray_visible:
                 if not self.__systray_page:
                     self.__systray_page = _Systray()
-                    self.os.add_task(self.__tick_systray)
+                    self.__systray_task = self.os.add_task(
+                        self.__tick_systray, execution_frequency=1
+                    )
                 self.__systray_page.setup(self.__systray_region, self)
             else:
                 if self.__systray_page:
                     self.__systray_page.teardown()
-                    self.os.remove_task(self.__tick_systray)
+                    self.os.remove_task(self.__systray_task)
+                    self.__systray_task = None
                 self.__systray_page = None
 
         elif self.__systray_needs_update:
@@ -1265,6 +1271,10 @@ class WindowManager:
 
         self.__systray_needs_setup = False
         self.__systray_needs_update = False
+
+        if self.__systray_page and self.__systray_page.needs_update:
+            self.__systray_task.enqueue()
+            self.__systray_page.needs_update = False
 
     @staticmethod
     def __calculate_regions(
