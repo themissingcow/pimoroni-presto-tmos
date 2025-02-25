@@ -40,6 +40,14 @@ mock_picographics = type(sys)("picographics")
 mock_picographics.PicoGraphics = mock.create_autospec(object, instance=False)
 sys.modules["picographics"] = mock_picographics
 
+mock_picovector = type(sys)("picovector")
+mock_picovector.PicoVector = mock.create_autospec(object, instance=False)
+mock_picovector.PicoVector.return_value.set_transform = mock.Mock()
+mock_picovector.PicoVector.return_value.set_antialiasing = mock.Mock()
+mock_picovector.Transform = mock.create_autospec(object, instance=False)
+mock_picovector.ANTIALIAS_BEST = mock.Mock()
+sys.modules["picovector"] = mock_picovector
+
 # Needed for typing, note this is _not_ the object within a presto
 # instance, as that is a generic recursive mock from the Presto
 # definition above.
