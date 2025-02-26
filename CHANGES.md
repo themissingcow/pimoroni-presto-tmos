@@ -11,7 +11,7 @@ v1.0.0-alpha.x
 
 ## New Features
 
-- Added experimental support for af fonts. A themes font can be set to
+- Added support for af fonts. A themes font can be set to
   the name of a `.af` font file, which will switch rendering to
   PicoVector. When using af fonts, the scale is set in pixels. NOTE:
   Rendering has been known to fail after a few minutes of updates, use

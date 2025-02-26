@@ -77,9 +77,6 @@ class Theme:
 
     Themes support bitmap and vector fonts. If the font name ends with
     ".af" then it will be rendered using PicoVector.
-
-    NOTE: Vector font support is experimental. Rendering can fail over
-    time. This has not been seen with bitmap fonts.
     """
 
     foreground_pen: int
@@ -159,8 +156,11 @@ class Theme:
             display.set_font(self.font)
 
     def _create_picovector(self, display: PicoGraphics) -> PicoVector:
+        # https://github.com/pimoroni/presto/issues/61
+        # pylint: disable=attribute-defined-outsite-init
+        self.__vector_transform = picovector.Transform()
         vector = PicoVector(display)
-        vector.set_transform(picovector.Transform())
+        vector.set_transform(self.__vector_transform)
         vector.set_antialiasing(picovector.ANTIALIAS_BEST)
         return vector
 
