@@ -26,7 +26,7 @@ to devices easier.
   - [x] Programmatic page navigation
   - [x] Basic buttons with event callbacks
   - [x] Tabbed UI for page switching
-  - [x] Themes with vector fonts
+  - [x] Themes with vector font support
   - [ ] Brightness controls
   - [ ] Clock
 
