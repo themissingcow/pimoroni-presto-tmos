@@ -1070,7 +1070,7 @@ class WindowManager:
             if s >= self.system_message_level
         ]
         full_screen = Region(0, 0, *self.display.get_bounds())
-        self.theme.draw_strings(self.display, display_messages, full_screen, scale=1)
+        self.theme.draw_strings(self.display, display_messages, full_screen)
         self.update_display()
 
     def add_page(self, page: Page, make_current: bool = False):
