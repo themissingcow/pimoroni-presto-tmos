@@ -41,7 +41,7 @@ to devices easier.
    [`secrets.py`](https://github.com/pimoroni/pimoroni-pico/blob/main/micropython/examples/pico_wireless/secrets.py) accordingly.
 3. Create an instance of `tmos.OS`.
 4. Configure as desired, and register one or more tasks to run.
-5. `boot` the with `run=True`.
+5. `boot` the OS with `run=True`.
 
 The following example shows how to setup the Presto with  Wifi, sync the
 RTC clock using NTP, and update the display every second with the
