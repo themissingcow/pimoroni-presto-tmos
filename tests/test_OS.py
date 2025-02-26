@@ -7,6 +7,8 @@ focus on the specifics of the business logic and advertised
 functionality.
 """
 
+import asyncio
+
 import time
 
 from unittest import mock
@@ -386,6 +388,14 @@ class Test_OS_run:
         mock_task.assert_called_once()
 
 
+class Test_OS_run_async:
+
+    def test_is_awaitable(self):
+        os_instance = OS()
+        os_instance.add_task(os_instance.stop)
+        asyncio.new_event_loop().run_until_complete(os_instance.run_async())
+
+
 class Test_OS_active:
 
     def test_when_task_made_active_then_last_execution_time_reset(self):
@@ -640,6 +650,41 @@ class Test_OS_run_execution_frequency:
             assert difference < tolerance
         else:
             assert average_interval < expected_interval
+
+
+class Test_async_tasks:
+
+    def test_when_async_function_registered_then_is_run(self):
+
+        os_instance = OS()
+
+        async def stop():
+            os_instance.stop()
+
+        os_instance.add_task(stop)
+        # This would hang if it wasn't called
+        os_instance.run()
+
+    def test_when_async_task_executed_before_sync_task_then_does_not_block(self):
+
+        os_instance = OS()
+
+        calls = []
+
+        def capture_tick():
+            calls.append(True)
+
+        async def stop_later():
+            await asyncio.sleep(0.05)
+            os_instance.stop()
+
+        os_instance.add_task(stop_later)
+        os_instance.add_task(capture_tick)
+        os_instance.run()
+        # If stop_later ran blocking the subsequent task, then we'd have
+        # exactly one invocation of the capture task as stop would have
+        # been called.
+        assert len(calls) > 1
 
 
 class Test_OS_update_display:

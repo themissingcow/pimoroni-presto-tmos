@@ -11,11 +11,14 @@ v1.0.0-alpha.x
 
 ## New Features
 
-- Added support for af fonts. A themes font can be set to
+- `async` functions can now be added as tasks. They will be added to the
+  main `asyncio` run loop. The OS will yield to the scheduler after each
+  task. These tasks must `await` something, or the main OS run loop will
+  be blocked as it would with a synchronous function. Adds
+  `OS.run_async` if you wish to manage your own `asyncio` event loop.
+- Added support for af fonts. A theme's font can be set to
   the name of a `.af` font file, which will switch rendering to
-  PicoVector. When using af fonts, the scale is set in pixels. NOTE:
-  Rendering has been known to fail after a few minutes of updates, use
-  standard PicoGraphics fonts if you need plain sailing.
+  PicoVector. When using af fonts, the scale is set in pixels.
 - Added a "systray" to the `WindowManager`. This presents a list of
   registered pages, and allows direct navigation between them. It can be
   positioned at the top or the bottom of the screen and shrinks the page

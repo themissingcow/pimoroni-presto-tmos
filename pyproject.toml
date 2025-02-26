@@ -13,7 +13,11 @@ authors = [
 dependencies = []
 requires-python = ">=3.10"
 
-[tool.pytest]
+[tool.pytest.ini_options]
+filterwarnings = [
+    # We construct a temporary coroutine to get the type
+    'ignore:coroutine .+ was never awaited'
+]
 
 [tool.pylint.format]
 max-line-length = 99

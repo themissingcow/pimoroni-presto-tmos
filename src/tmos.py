@@ -29,6 +29,7 @@ state management.
 
 # This is a monstrous single-file module to make deployment easier.
 
+import asyncio
 import sys
 import time
 
@@ -274,6 +275,8 @@ class OS:
     __GLOW_LED_PIN = 33
     __GLOW_LED_COUNT = 7
 
+    __coroutine_type = None
+
     class Task:
         """
         Represents a task in the task list. Tracks last run, and the
@@ -284,6 +287,7 @@ class OS:
         execution_interval_us: int
         last_execution_us: int | None
         touch_forces_execution: bool
+        current_invocation: asyncio.Task = None
 
         def __init__(
             self,
@@ -365,6 +369,15 @@ class OS:
             )
             self.backlight_manager.display_phase_controls_glow_leds = False
 
+        # Allows us to detect if a supplied task is a coroutine or not.
+        # Fallible, as this is 'generator' in micropython, but as we
+        # don't ever expect function tasks to return anything, then this
+        # should work fine.
+        async def coro():
+            pass
+
+        self.__coroutine_type = type(coro())
+
     def boot(
         self,
         wifi: bool = False,
@@ -437,11 +450,20 @@ class OS:
         execution will be immediately scheduled regardless of any
         preferred execution_frequency.
         """
+        asyncio.get_event_loop().run_until_complete(self.run_async())
+
+    async def run_async(self):
+        """
+        An async equivalent to run. It yields to the scheduler after
+        each task, in each run loop.
+
+        See the documentation for run for more general information.
+        """
         self.post_message("Starting tasks")
         try:
             self.__running = True
             while self.__running:
-                self.__tick()
+                await self.__tick()
         except Exception as ex:  # pylint: disable=broad-except
             self.post_message(str(ex), MSG_FATAL)
             raise ex
@@ -530,6 +552,12 @@ class OS:
         list, and subsequent additions will cause the task to be run
         multiple times.
 
+        async functions can be added. These will be scheduled on the
+        main asyncio run loop. If an async task doesn't await anything,
+        it will block other tasks. If an async task hasn't completed
+        within its execution_frequency window, another invocation won't
+        be scheduled until it has.
+
         :param fn: A callable to be invoked in the run loop.
         :type fn: Callable[[], None]
         :param index: The index in the list of tasks to insert the task.
@@ -602,7 +630,7 @@ class OS:
             self.post_message(str(ex), MSG_FATAL)
             raise ex
 
-    def __tick(self):
+    async def __tick(self):
         """
         The main run loop function. Called indefinitely from run, whilst
         self.__running is True. Call stop to, well, stop.
@@ -625,9 +653,9 @@ class OS:
         self.backlight_manager.tick(time_now_s)
 
         # Run the users tasks
-        self.__execute_tasks(time_us)
+        await self.__execute_tasks(time_us)
 
-    def __execute_tasks(self, time_us: int):
+    async def __execute_tasks(self, time_us: int):
         """
         Runs any tasks that are pending, based on their execution
         frequency and other triggers.
@@ -640,7 +668,24 @@ class OS:
             if not self.__task_should_run(task, time_us, touch_considered_active):
                 continue
             task.last_execution_us = time_us
-            task.fn()
+            self.__dispatch(task)
+            await asyncio.sleep(0)
+
+    def __dispatch(self, task: Task):
+        """
+        Executes the task function, if this is a coroutine, then adds it as an async task
+        """
+        result = task.fn()
+        if isinstance(result, self.__coroutine_type):
+            # This was an async func so we need to run it as task. We
+            # wrap it so we can track whether one is still in flight to
+            # avoid multiple concurrent invocations should its runtime
+            # outlast the execution_frequency window.
+            async def invoke():
+                await result
+                task.current_invocation = None
+
+            task.current_invocation = asyncio.create_task(invoke())
 
     @staticmethod
     def __task_should_run(task: Task, time_now_us: int, touch_active: bool) -> bool:
@@ -649,6 +694,8 @@ class OS:
         its last invocation.
         """
         if not task.active:
+            return False
+        if task.current_invocation:
             return False
         if touch_active and task.touch_forces_execution:
             return True
