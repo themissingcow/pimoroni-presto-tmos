@@ -1226,9 +1226,12 @@ class WindowManager:
         if self.__pages_need_setup:
             for page in self.__pages:
                 page.setup(self.content_region, self)
-                # Make sure any long-interval tasks still run
-                # immediately Or their display will be out of sync.
-                self.__page_tasks[page].enqueue()
+                # We could make page set this in setup, but then
+                # everyone would need to call the base class method, and
+                # they're only going to forget...
+                # We could wrap it, but then that's potentially less
+                # intuitive too for some... 🤷
+                page.needs_update = True
             self.__pages_need_setup = False
 
         if self.__current_page == self.__last_page:
@@ -1258,6 +1261,7 @@ class WindowManager:
                         self.__tick_systray, execution_frequency=1
                     )
                 self.__systray_page.setup(self.__systray_region, self)
+                self.__systray_page.needs_update = True
             else:
                 if self.__systray_page:
                     self.__systray_page.teardown()
