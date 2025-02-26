@@ -42,6 +42,7 @@ sys.modules["picographics"] = mock_picographics
 
 mock_picovector = type(sys)("picovector")
 mock_picovector.PicoVector = mock.create_autospec(object, instance=False)
+mock_picovector.PicoVector.return_value.set_font = mock.Mock()
 mock_picovector.PicoVector.return_value.set_transform = mock.Mock()
 mock_picovector.PicoVector.return_value.set_antialiasing = mock.Mock()
 mock_picovector.Transform = mock.create_autospec(object, instance=False)
