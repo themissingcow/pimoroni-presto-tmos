@@ -9,6 +9,7 @@ TODO: Document the architecture of the UI Layer
 
 # This is a monstrous single-file module to make deployment easier.
 
+import asyncio
 import math
 
 from collections import namedtuple
@@ -34,6 +35,14 @@ __all__ = [
     "to_screen",
 ]
 
+# Allows us to detect if a supplied task is a coroutine or not.
+# Fallible, as this is 'generator' in micropython, but as we
+# don't ever expect function tasks to return anything, then this
+# should work fine.
+async def __coro():
+    pass
+
+COROUTINE_TYPE = type(__coro())
 
 def to_screen(region: Region, x: int, y: int) -> (int, int):
     """
@@ -465,7 +474,9 @@ class Control:
         """
         fn = getattr(self, event_name)
         if fn:
-            fn(*args, **kwargs)
+            result = fn(*args, **kwargs)
+            if isinstance(result, COROUTINE_TYPE):
+                asyncio.create_task(result)
 
 
 class _Button(Control):
