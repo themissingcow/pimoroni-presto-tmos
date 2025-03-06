@@ -267,6 +267,8 @@ class Theme:
         """
         if self._use_vector_font_rendering:
             self._vector.set_font_size(self.text_scale(rel_scale))
+            # The default line height is a little large
+            self._vector.set_font_line_height(int(rel_scale * (self.base_font_scale * 1.3)))
             y += int(self.line_spacing(rel_scale) * 0.75)
             self._vector.text(text, x, y)
         else:
