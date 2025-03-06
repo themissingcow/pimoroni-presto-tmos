@@ -417,6 +417,12 @@ class DefaultTheme(Theme):
     A simple black-and-white theme.
     """
 
+    padding = 5
+    font = "bitmap8"
+    base_font_scale = 1
+    base_line_height = 10
+    systray_height = 30
+
     def setup(self, display: PicoGraphics):
 
         w, _ = display.get_bounds()
@@ -424,13 +430,10 @@ class DefaultTheme(Theme):
         self.foreground_pen = display.create_pen(0, 0, 0)
         self.background_pen = display.create_pen(255, 255, 255)
         self.error_pen = display.create_pen(200, 0, 0)
-        self.font = "bitmap8"
-        self.base_font_scale = 1
-        self.base_line_height = 10
         self.control_height = 3 * self.base_line_height
-        self.systray_height = 30
 
         if w > 240:
+            self.padding *= 2
             self.base_font_scale *= 2
             self.base_line_height *= 2
             self.control_height *= 2
