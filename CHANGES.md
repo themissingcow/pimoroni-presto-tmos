@@ -1,5 +1,8 @@
-v1.0.0-alpha.x
+v1.0.0-alpha.4
 ==============
+
+> [!IMPORTANT]
+> This release supports Presto firmware up to and including 0.0.7.
 
 ## Breaking Changes
 
