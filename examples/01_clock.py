@@ -60,4 +60,4 @@ os.add_task(clock, execution_frequency=1)
 
 # Enable WiFI and NTP so we have the correct time, start the run loop as
 # everything else is configured.
-os.boot(wifi=True, use_ntp=True, glow_leds=True, run=True)
+os.boot(wifi=True, use_ntp=True, run=True)

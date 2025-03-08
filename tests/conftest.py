@@ -18,6 +18,7 @@ mock_presto = type(sys)("presto")
 mock_presto.Presto = mock.Mock()
 mock_presto.Presto.return_value.connect = mock.Mock()
 mock_presto.Presto.return_value.touch.poll = mock.Mock()
+mock_presto.Presto.return_value.set_led_rgb = mock.Mock()
 # Ensure that the state property isn't a Mock, which would evaluate
 # touch True, and make code thing there was perpetually a touch in
 # progress.
@@ -26,11 +27,6 @@ mock_presto.Presto.return_value.touch.state2 = False
 mock_presto.Presto.return_value.display.get_bounds.return_value = (240, 240)
 mock_presto.Buzzer = mock.Mock()
 sys.modules["presto"] = mock_presto
-
-mock_plasma = type(sys)("plasma")
-mock_plasma.WS2812 = mock.create_autospec(object, instance=False)
-mock_plasma.WS2812.return_value.start = mock.Mock()
-sys.modules["plasma"] = mock_plasma
 
 mock_ntptime = type(sys)("ntptime")
 mock_ntptime.settime = mock.Mock()
@@ -72,16 +68,6 @@ def mock_presto_module():
     mock_presto.Presto.reset_mock()
     mock_presto.Buzzer.reset_mock()
     return mock_presto
-
-
-@pytest.fixture
-def mock_plasma_module():
-    """
-    Supplies the mock/stub used for the "plasma" module to allow
-    asserts. The mock will be reset for each test.
-    """
-    mock_plasma.WS2812.reset_mock()
-    return mock_plasma
 
 
 @pytest.fixture

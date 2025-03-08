@@ -37,8 +37,6 @@ from collections import namedtuple
 
 import ntptime
 
-from plasma import WS2812
-import plasma
 from presto import Presto, Buzzer
 from picographics import PicoGraphics
 from touch import FT6236
@@ -73,20 +71,12 @@ class BacklightManager:
     It defines three distinct display "phases". Each phase has an
     associated timeout, and brightness values for the display and LEDs.
 
-    LED control can be disabled if required, usually when a user process
-    is directly controlling the LEDs. The LEDs on the presto don't
-    support an independent brightness, and so the only way to implement
-    this is by modifying the requested color. Consequently, there isn't
-    a way to insert ourselves into any plasma updates implemented in
-    user code.
-
     By default, the backlight manager consumes any touches that cause a
     display phase transition, this can be disabled by setting
     display_wake_consumes_touch to False.
     """
 
     presto: Presto = None
-    glow_leds: WS2812 = None
     num_leds: int = 7
 
     DISPLAY_ON = "on"
@@ -148,7 +138,7 @@ class BacklightManager:
         brightness for the display phase, and multiplying the requested
         LED color.
         """
-        if not self.glow_leds:
+        if not self.presto:
             return
 
         rgb = (r, g, b)
@@ -160,7 +150,7 @@ class BacklightManager:
             rgb = [int(v * brightness) for v in rgb]
 
         for i in range(self.num_leds):
-            self.glow_leds.set_rgb(i, *rgb)
+            self.presto.set_led_rgb(i, *rgb)
 
     def tick(self, time_now_s: int):
 
@@ -259,7 +249,6 @@ class OS:
     display: PicoGraphics
     touch: FT6236
     buzzer: Buzzer
-    glow_leds: WS2812
 
     #
     # Backlight / Glow LED management
@@ -382,8 +371,6 @@ class OS:
         self,
         wifi: bool = False,
         use_ntp: bool = False,
-        glow_leds: bool = False,
-        glow_fps: int | None = None,
         run: bool = False,
     ):
         """
@@ -396,28 +383,12 @@ class OS:
         :param wifi: When True, attempts to connect using secrets.py
         :param use_ntp: When True syncs the RTC to the current time
           using NTP (requires wifi).
-        :param glow_leds: WHen True, creates a plasma instance to manage
-          the glow LEDs, and starts it running.
-        :param glow_fps: Specifies the update frequency for the Glow
-          LEDs, if omitted, the plasma defaults for start are used.
         :param run: When True, the run loop will be started (@see run)
         :raises RuntimeError: If use_ntp is requested without wifi.
         """
         try:
             self.post_message("Initialising Buzzer")
             self.buzzer = Buzzer(self.__BUZZER_PIN)
-
-            if glow_leds:
-                self.post_message("Initialising Glow LEDs")
-                self.glow_leds = WS2812(self.__GLOW_LED_COUNT, 0, 0, self.__GLOW_LED_PIN)
-                if glow_fps:
-                    self.glow_leds.start(glow_fps)
-                else:
-                    self.glow_leds.start()
-                self.backlight_manager.glow_leds = self.glow_leds
-                self.backlight_manager.num_leds = self.__GLOW_LED_COUNT
-            else:
-                self.glow_leds = None
 
             if wifi:
                 self.__setup_network(use_ntp)

@@ -1,3 +1,15 @@
+v1.0.0-alpha.x
+==============
+
+> [!IMPORTANT]
+> This release requires Presto firmware 0.0.8 or later.
+
+## Breaking Changes
+
+- Adds support for firmware 0.0.8. As plasma is no longer used to manage
+  the Presto LEDs, this removes the now redundant `glow_leds` and
+  `glow_fps` kwargs from `OS.boot`.
+
 v1.0.0-alpha.4
 ==============
 

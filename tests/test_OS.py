@@ -53,14 +53,11 @@ class Test_OS_init:
 class Test_OS_boot:
 
     def test_when_called_with_default_args_then_only_buzzer_initialized(
-        self, mock_presto_module, mock_plasma_module, mock_ntptime_module
+        self, mock_presto_module, mock_ntptime_module
     ):
         os_instance = OS()
         os_instance.boot()
         assert os_instance.buzzer is mock_presto_module.Buzzer.return_value
-        # Glow LEDs - no
-        assert os_instance.glow_leds is None
-        mock_plasma_module.WS2812.assert_not_called()
         # WiFI - no
         mock_presto_module.Presto.return_value.connect.assert_not_called()
         # ntptime - no
@@ -92,28 +89,6 @@ class Test_OS_boot:
         os_instance = OS()
         with pytest.raises(RuntimeError):
             os_instance.boot(wifi=False, use_ntp=True)
-
-    def test_when_called_with_glow_leds_then_plasma_configured_and_started_with_no_fps(
-        self, mock_plasma_module
-    ):
-        os_instance = OS()
-        os_instance.boot(glow_leds=True)
-        assert os_instance.glow_leds is mock_plasma_module.WS2812.return_value
-        os_instance.glow_leds.start.assert_called_once_with()
-
-    def test_when_called_with_glow_leds_then_plasma_configured_and_started_with_requested_fps(
-        self, mock_plasma_module
-    ):
-        expected_num_leds = 7
-        expected_led_pin = 33
-        expected_fps = 27
-        os_instance = OS()
-        os_instance.boot(glow_leds=True, glow_fps=expected_fps)
-        assert os_instance.glow_leds is mock_plasma_module.WS2812.return_value
-        mock_plasma_module.WS2812.assert_called_once_with(
-            expected_num_leds, 0, 0, expected_led_pin
-        )
-        os_instance.glow_leds.start.assert_called_once_with(expected_fps)
 
     def test_when_called_with_run_then_run_loop_started(self):
 
