@@ -35,6 +35,7 @@ __all__ = [
     "to_screen",
 ]
 
+
 # Allows us to detect if a supplied task is a coroutine or not.
 # Fallible, as this is 'generator' in micropython, but as we
 # don't ever expect function tasks to return anything, then this
@@ -42,7 +43,9 @@ __all__ = [
 async def __coro():
     pass
 
+
 COROUTINE_TYPE = type(__coro())
+
 
 def to_screen(region: Region, x: int, y: int) -> (int, int):
     """
