@@ -13,8 +13,10 @@ v1.0.0-alpha.x
 ## New Features
 
 - Added `Page._update`, called by the default implementation of
-  `Page.tick`, before ` Page.draw`. This formalises a slot to update
-  other hardware, or controls prior to presentation.
+  `Page.tick`, before `Page._draw`. This formalises a slot to update
+  other hardware or controls prior to presentation.
+- Allow systray text scale to be controlled via
+  `Theme.systray_text_rel_scale`.
 
 v1.0.0-alpha.4
 ==============

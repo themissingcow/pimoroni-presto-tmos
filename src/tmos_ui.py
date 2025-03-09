@@ -140,6 +140,11 @@ class Theme:
     The height of the systray, when visible.
     """
 
+    systray_text_rel_scale: int = 1
+    """
+    The relative scale of text used in the systray.
+    """
+
     _use_vector_font_rendering: bool = False
     _vector: PicoVector = None
 
@@ -759,7 +764,7 @@ class SystrayPageButton(LatchingButton):
         theme.draw_systray_page_button_frame(display, self.region, self.__is_down)
         if self.title:
             theme.draw_systray_page_button_title(
-                display, self.region, self.__is_down, self.title, self.title_rel_scale
+                display, self.region, self.__is_down, self.title, theme.systray_text_rel_scale
             )
 
 
