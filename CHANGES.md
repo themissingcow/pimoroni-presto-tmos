@@ -10,6 +10,12 @@ v1.0.0-alpha.x
   the Presto LEDs, this removes the now redundant `glow_leds` and
   `glow_fps` kwargs from `OS.boot`.
 
+## New Features
+
+- Added `Page._update`, called by the default implementation of
+  `Page.tick`, before ` Page.draw`. This formalises a slot to update
+  other hardware, or controls prior to presentation.
+
 v1.0.0-alpha.4
 ==============
 

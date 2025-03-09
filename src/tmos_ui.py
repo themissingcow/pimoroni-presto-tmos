@@ -848,6 +848,7 @@ class Page:
         for control in self._controls:
             control.process_touch_state(touch)
 
+        self._update(window_manager.os)
         self._draw(display, region, theme)
 
         for control in self._controls:
@@ -868,6 +869,15 @@ class Page:
         Called before a page is removed.
         """
         self._controls = []
+
+    def _update(self, os: OS):
+        """
+        The default implementation of tick will call this method to
+        allow any updates to be performed after touches have been
+        processed, before the screen is drawn.
+
+        This is an opportunity to update LEDs or button titles, etc.
+        """
 
     def _draw(self, display: PicoGraphics, region: Region, theme: Theme):
         """
