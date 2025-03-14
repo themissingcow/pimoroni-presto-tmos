@@ -8,7 +8,7 @@ Tests for misc items in the tmos_ui module.
 import time
 
 from tmos import Region
-from tmos_ui import inset_region, to_screen
+from tmos_ui import inset_region, is_within, to_screen
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
 # pylint: disable=invalid-name
@@ -28,6 +28,29 @@ class Test_to_screen:
         expected_y = y + offset_y
 
         assert to_screen(a_region, x, y) == (expected_x, expected_y)
+
+
+class Test_within:
+
+    def test_when_point_within_then_true(self):
+        r = Region(10, 20, 30, 40)
+        for x, y in ((10, 20), (32, 33), (39, 59)):
+            assert is_within(r, x, y) is True
+
+    def test_when_point_within_x_only_then_false(self):
+        r = Region(10, 20, 30, 40)
+        for x, y in ((10, 0), (32, 60), (39, 89)):
+            assert is_within(r, x, y) is False
+
+    def test_when_point_within_y_only_then_false(self):
+        r = Region(10, 20, 30, 40)
+        for x, y in ((0, 20), (40, 33), (53, 59)):
+            assert is_within(r, x, y) is False
+
+    def test_when_point_outside_then_false(self):
+        r = Region(10, 20, 30, 40)
+        for x, y in ((0, 19), (40, 60), (53, 78)):
+            assert is_within(r, x, y) is False
 
 
 class Test_inset_region:
