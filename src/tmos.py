@@ -273,7 +273,7 @@ class OS:
         """
 
         fn: "Callable[[],  None]"
-        execution_interval_us: int
+        execution_interval_us: int | None
         last_execution_us: int | None
         touch_forces_execution: bool
         current_invocation: asyncio.Task = None
@@ -281,14 +281,14 @@ class OS:
         def __init__(
             self,
             fn,
-            execute_interval_us: int,
+            execution_interval_us: int,
             touch_forces_execution: bool = True,
             active: bool = True,
         ) -> None:
             self.fn = fn
             self.active = active
             self.last_execution_us = None
-            self.execution_interval_us = execute_interval_us
+            self.execution_interval_us = execution_interval_us
             self.touch_forces_execution = touch_forces_execution
 
         @property
@@ -541,11 +541,17 @@ class OS:
           interactions.
         :return: A Task object representing the added task.
         """
-        if execution_frequency is not None and execution_frequency <= 0:
-            raise ValueError(f"execution_frequency must be > 0 ({execution_frequency})")
 
-        execute_interval_us = int(1e6 // execution_frequency) if execution_frequency else -1
-        task = OS.Task(fn, execute_interval_us, touch_forces_execution, active=active)
+        execution_interval_us = -1
+        if execution_frequency is not None:
+            if execution_frequency < 0:
+                raise ValueError(f"execution_frequency must be >= 0 ({execution_frequency})")
+            elif execution_frequency == 0:
+                execution_interval_us = None
+            else:
+                execution_interval_us = int(1e6 // execution_frequency)
+
+        task = OS.Task(fn, execution_interval_us, touch_forces_execution, active=active)
 
         if index < 0:
             self.__tasks.append(task)
@@ -553,7 +559,7 @@ class OS:
             self.__tasks.insert(index, task)
 
         self.post_message(
-            f"Added task: {fn} (index {index}, interval: {execute_interval_us})",
+            f"Added task: {fn} (index {index}, interval: {execution_interval_us})",
             MSG_DEBUG,
         )
 
@@ -672,4 +678,6 @@ class OS:
             return True
         if task.last_execution_us is None:
             return True
+        if task.execution_interval_us is None:
+            return False
         return time.ticks_diff(time_now_us, task.last_execution_us) >= task.execution_interval_us

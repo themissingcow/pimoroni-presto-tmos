@@ -457,13 +457,21 @@ class Test_OS_run_execution_frequency:
 
         assert task.execution_interval_us == expected_interval_us
 
+    def test_when_task_added_with_execution_frequency_zero_then_interval_is_none(self):
+
+        os_instance = OS()
+        mock_task = mock.Mock()
+        task = os_instance.add_task(mock_task, execution_frequency=0)
+
+        assert task.execution_interval_us is None
+
     def test_when_task_added_with_invalid_execution_frequence_then_ValueError_raised(
         self,
     ):
 
         os_instance = OS()
 
-        for invalid_hz in (-12.4, -1, 0):
+        for invalid_hz in (-12.4, -1):
             with pytest.raises(ValueError):
                 os_instance.add_task(mock.Mock(), execution_frequency=invalid_hz)
 
@@ -499,6 +507,42 @@ class Test_OS_run_execution_frequency:
         assert abs(task.last_execution_us - call_times[-1]) < 100
         # Check call intervals are close enough
         self.__check_intervals(call_times, expected_interval_us, 0.1)
+
+        os_instance.presto.touch.state = False
+
+    def test_when_task_has_execution_frequency_zero_and_ignores_touch_then_run_once(
+        self,
+    ):
+
+        num_calls = 3
+
+        call_times = []
+        control_call_times = []
+
+        def task_fn():
+            call_times.append(time.ticks_us())
+
+        def control_task_fn():
+            control_call_times.append(time.ticks_us())
+            if len(control_call_times) == num_calls:
+                os_instance.stop()
+
+        os_instance = OS()
+
+        # simulate a touch
+        os_instance.presto.touch.state = True
+
+        task = os_instance.add_task(task_fn, execution_frequency=0, touch_forces_execution=False)
+        control_task = os_instance.add_task(
+            control_task_fn, execution_frequency=10, touch_forces_execution=False
+        )
+        assert task.execution_interval_us == None
+        assert task.touch_forces_execution is False
+
+        os_instance.run()
+
+        assert len(call_times) == 1
+        assert len(control_call_times) == num_calls
 
         os_instance.presto.touch.state = False
 
@@ -547,6 +591,48 @@ class Test_OS_run_execution_frequency:
         # Check non-touch intervals are as expected from frequency
         without_touch = call_times[num_calls_in_touch:]
         self.__check_intervals(without_touch, expected_interval_us, 0.2)
+
+    def test_when_task_execution_frequency_zero_and_executes_on_touch_then_touch_forces_execution(
+        self,
+    ):
+
+        max_expected_touch_interval_us = 1e6 // 25
+        num_calls = 7
+        num_calls_in_touch = 3
+
+        call_times = []
+        control_call_times = []
+
+        os_instance = OS()
+
+        def task_fn():
+            call_times.append(time.ticks_us())
+
+        def control_task_fn():
+            control_call_times.append(time.ticks_us())
+            if len(control_call_times) == num_calls_in_touch:
+                os_instance.presto.touch.state = False
+            if len(control_call_times) == num_calls:
+                os_instance.stop()
+
+        task = os_instance.add_task(task_fn, execution_frequency=0, touch_forces_execution=True)
+        os_instance.add_task(control_task_fn, execution_frequency=5, touch_forces_execution=True)
+
+        assert task.execution_interval_us is None
+        assert task.touch_forces_execution
+
+        # Simulate a touch
+        os_instance.presto.touch.state = True
+
+        os_instance.run()
+
+        # Note: there is an additional call immediately after touch is
+        # false ,to allow UIs to update. As such there will be
+        # num_calls_in_touch + 1 at a high frequency.
+
+        assert len(call_times) == num_calls_in_touch + 1
+
+        self.__check_intervals(call_times, max_expected_touch_interval_us)
 
     def test_when_touch_forces_execution_then_additional_high_freq_invocation_after_touch_up(self):
 

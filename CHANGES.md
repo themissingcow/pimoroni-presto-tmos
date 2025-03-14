@@ -18,6 +18,8 @@ v1.0.0-alpha.x
 - Allow systray text scale to be controlled via
   `Theme.systray_text_rel_scale`.
 - Added `inset_region` function to simplify insetting controls, etc.
+- `OS.add_task` now supports setting `execution_frequency` to `0`, to
+  indicate the task should only run for touches, and when enqueued.
 
 v1.0.0-alpha.4
 ==============
