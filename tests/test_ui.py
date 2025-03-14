@@ -8,7 +8,7 @@ Tests for misc items in the tmos_ui module.
 import time
 
 from tmos import Region
-from tmos_ui import to_screen
+from tmos_ui import inset_region, to_screen
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
 # pylint: disable=invalid-name
@@ -28,3 +28,18 @@ class Test_to_screen:
         expected_y = y + offset_y
 
         assert to_screen(a_region, x, y) == (expected_x, expected_y)
+
+
+class Test_inset_region:
+
+    def test_when_x_and_y_supplied_then_inset_to_smaller_region(self):
+        r = Region(10, 20, 30, 40)
+        assert inset_region(r, 2, 3) == Region(12, 23, 26, 34)
+
+    def test_when_negative_x_and_y_supplied_then_inset_to_larger_region(self):
+        r = Region(10, 20, 30, 40)
+        assert inset_region(r, -2, -3) == Region(8, 17, 34, 46)
+
+    def test_when_only_x_supplied_then_used_to_inset_y(self):
+        r = Region(10, 20, 30, 40)
+        assert inset_region(r, 2) == Region(12, 22, 26, 36)

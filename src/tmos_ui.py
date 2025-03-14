@@ -74,6 +74,30 @@ def is_within(region: Region, x: int, y: int) -> bool:
     return region.x <= x < (region.x + region.width) and region.y <= y < (region.y + region.height)
 
 
+def inset_region(region: Region, x_amt: int, y_amt: int = None) -> Region:
+    """
+    Insets the specified region, to a smaller region.
+
+    NOTE: Not effort is made to ensure the resulting region has positive
+    volume.
+
+    :param region: The region to inset.
+    :param x_amt: The amount to inset the left and right sides by.
+    :param y_amt: The amount to inset the top and bottom, if None,
+      then x_amt will be used.
+    :return: The inset region.
+    """
+    if y_amt is None:
+        y_amt = x_amt
+
+    return Region(
+        region.x + x_amt,
+        region.y + y_amt,
+        region.width - x_amt - x_amt,
+        region.height - y_amt - y_amt,
+    )
+
+
 class Theme:
     """
     The encapsulation of a color scheme and presentation of UI elements.

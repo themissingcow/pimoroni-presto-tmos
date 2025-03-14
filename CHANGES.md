@@ -17,6 +17,7 @@ v1.0.0-alpha.x
   other hardware or controls prior to presentation.
 - Allow systray text scale to be controlled via
   `Theme.systray_text_rel_scale`.
+- Added `inset_region` function to simplify insetting controls, etc.
 
 v1.0.0-alpha.4
 ==============
