@@ -125,6 +125,11 @@ class Theme:
     The preferred pen to use for empty areas.
     """
 
+    secondary_background_pen: int
+    """
+    The pen to use for secondary empty areas.
+    """
+
     error_pen: int
     """
     The preferred pen to use for highlighting errors or other
@@ -461,6 +466,7 @@ class DefaultTheme(Theme):
 
         self.foreground_pen = display.create_pen(0, 0, 0)
         self.background_pen = display.create_pen(255, 255, 255)
+        self.secondary_background_pen = display.create_pen(200, 200, 200)
         self.error_pen = display.create_pen(200, 0, 0)
         self.control_height = 3 * self.base_line_height
 

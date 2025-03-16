@@ -24,6 +24,11 @@ v1.0.0-alpha.x
   should only update with touches or by setting `needs_update`. Adds
   `StaticPage` class with a fixed `execution_frequency` of `0`.
 
+## Improvements
+
+- Adds `Theme.secondary_background_pen` for use in empty areas of
+  secondary UI elements (e.g. empty regions of the systray).
+
 v1.0.0-alpha.4
 ==============
 
