@@ -855,6 +855,8 @@ class Page:
         perform any other house keeping. Not that this may be called
         multiple times during the lifetime of the page, should its
         available region change for any reason.
+
+        There is no need to call the base class implementation.
         """
 
     def will_show(self):
@@ -1104,10 +1106,19 @@ class WindowManager:
         self.__systray_needs_setup = True
 
     @property
-    def systray_position(self) -> bool:
+    def systray_position(self) -> str:
+        """
+        The current position of the systray when visible.
+        """
         return self.__systray_position
 
     def set_systray_position(self, position: str):
+        """
+        Sets the position of the systray when visible.
+
+        :param position: The position, either "top" or "bottom".
+        :raises ValueError: If an unknown position is specified.
+        """
         if position == self.systray_position:
             return
         if position not in ("top", "bottom"):
@@ -1117,9 +1128,16 @@ class WindowManager:
 
     @property
     def systray_visible(self) -> bool:
+        """
+        Whether the systray is currently visible.
+        :return: True if the systray will be drawn at the next tick.
+        """
         return self.__systray_visible
 
     def set_systray_visible(self, is_visible: bool):
+        """
+        Sets whether the systray is visible after the next tick.
+        """
         if is_visible == self.systray_visible:
             return
         self.__systray_visible = is_visible
@@ -1141,6 +1159,9 @@ class WindowManager:
         self.__update_systray()
 
     def update_display(self, *args, **kwargs):
+        """
+        Updates the display. See OS.update_display.
+        """
         return self.os.update_display(*args, **kwargs)
 
     def os_msg(self, msg: str, severity: int):
