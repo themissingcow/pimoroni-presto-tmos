@@ -921,6 +921,21 @@ class Page:
         """
 
 
+class StaticPage(Page):
+    """
+    A specialisation of pages that only updates when requested (by
+    setting self.needs_update), or through touch interactions.
+    """
+
+    @property
+    def execution_frequency(self):
+        """
+        Execution frequency is fixed at 0 for static pages that manually
+        request updates.
+        """
+        return 0
+
+
 class _Systray(Page):
     """
     A (notionally private) page that presents a tabbed page

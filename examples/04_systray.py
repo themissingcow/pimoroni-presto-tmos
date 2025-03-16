@@ -11,6 +11,7 @@ from tmos_ui import (
     LatchingButton,
     MomentaryButton,
     Page,
+    StaticPage,
     RadioButton,
     WindowManager,
     Theme,
@@ -48,13 +49,12 @@ class ClockPage(Page):
         )
 
 
-class TextPage(Page):
+class TextPage(StaticPage):
     """
     A page with some words...
     """
 
     title = "Wordage"
-    execution_frequency = 0.01
 
     def _draw(self, display: PicoGraphics, region: Region, theme: Theme):
 
@@ -64,13 +64,12 @@ class TextPage(Page):
         theme.text(display, "The\nCat\nsat\non\the\nMat", *to_screen(region, p, p), rel_scale=2)
 
 
-class SetupPage(Page):
+class SetupPage(StaticPage):
     """
     A page that allows customisation of the systray.
     """
 
     title = "Setup"
-    execution_frequency = 0.01
 
     def setup(self, region: Region, window_manager: "WindowManager"):
         """

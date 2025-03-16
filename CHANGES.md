@@ -20,6 +20,9 @@ v1.0.0-alpha.x
 - Added `inset_region` function to simplify insetting controls, etc.
 - `OS.add_task` now supports setting `execution_frequency` to `0`, to
   indicate the task should only run for touches, and when enqueued.
+- `Page.execution_frequency` can now be set to `0`, to indicate the page
+  should only update with touches or by setting `needs_update`. Adds
+  `StaticPage` class with a fixed `execution_frequency` of `0`.
 
 v1.0.0-alpha.4
 ==============
