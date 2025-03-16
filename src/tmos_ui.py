@@ -422,6 +422,16 @@ class Theme:
         :param display: The display to draw on.
         :param region: The bounds of the systray region.
         """
+        display.set_pen(self.secondary_background_pen)
+        display.rectangle(*region)
+        display.set_pen(self.foreground_pen)
+        display.line(region.x, region.y, region.x + region.width, region.y)
+        display.line(
+            region.x,
+            region.y + region.height - 1,
+            region.x + region.width,
+            region.y + region.height - 1,
+        )
 
     def draw_systray_page_button_frame(
         self, display: PicoGraphics, region: Region, is_pressed: bool
