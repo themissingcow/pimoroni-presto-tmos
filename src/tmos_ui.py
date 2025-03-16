@@ -788,10 +788,10 @@ class SystrayPageButton(LatchingButton):
     """
 
     def draw(self, display: PicoGraphics, theme: Theme):
-        theme.draw_systray_page_button_frame(display, self.region, self.__is_down)
+        theme.draw_systray_page_button_frame(display, self.region, self.is_down)
         if self.title:
             theme.draw_systray_page_button_title(
-                display, self.region, self.__is_down, self.title, theme.systray_text_rel_scale
+                display, self.region, self.is_down, self.title, theme.systray_text_rel_scale
             )
 
 
