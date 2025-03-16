@@ -873,19 +873,7 @@ class Page:
         state of user interactivity. _draw is then called, and controls
         are drawn on top.
         """
-        display = window_manager.display
-        touch = window_manager.os.touch
-        theme = window_manager.theme
-
-        for control in self._controls:
-            control.process_touch_state(touch)
-
-        self._update(window_manager.os)
-        self._draw(display, region, theme)
-
-        for control in self._controls:
-            control.draw(display, theme)
-
+        self._tick(region, window_manager)
         window_manager.update_display(region)
 
     def will_hide(self):
@@ -901,6 +889,21 @@ class Page:
         Called before a page is removed.
         """
         self._controls = []
+
+    def _tick(self, region: Region, window_manager: "WindowManager"):
+
+        display = window_manager.display
+        touch = window_manager.os.touch
+        theme = window_manager.theme
+
+        for control in self._controls:
+            control.process_touch_state(touch)
+
+        self._update(window_manager.os)
+        self._draw(display, region, theme)
+
+        for control in self._controls:
+            control.draw(display, theme)
 
     def _update(self, os: OS):
         """
