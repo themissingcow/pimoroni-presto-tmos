@@ -12,6 +12,10 @@ v1.0.0-alpha.x
 
 ## New Features
 
+- Added 'accessories' to the systray. See `WindowManager.add_systray_accessory`,
+  `WindowManager.remove_systray_accessory` and `Systray.Accessory`.
+  Accessories can be placed at the leading or trailing end of the tray,
+  and are updated/drawn with the systray.
 - Added `Page._update`, called by the default implementation of
   `Page.tick`, before `Page._draw`. This formalises a slot to update
   other hardware or controls prior to presentation.

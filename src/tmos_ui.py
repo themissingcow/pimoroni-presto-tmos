@@ -19,7 +19,7 @@ from picographics import PicoGraphics
 import picovector
 from picovector import PicoVector
 
-from tmos import OS, Region, MSG_WARNING, MSG_SEVERITY_NAMES
+from tmos import OS, Region, Size, MSG_WARNING, MSG_SEVERITY_NAMES
 
 
 __all__ = [
@@ -957,24 +957,247 @@ class StaticPage(Page):
         return 0
 
 
-class _Systray(Page):
+class Systray(Page):
     """
-    A (notionally private) page that presents a tabbed page
-    switcher, and in the future, other system control.
+    A (notionally private) page that presents a tabbed page switcher,
+    and optional "accessories" that appear before or after the page
+    switcher.
     """
 
     title = "Systray"
 
-    __pages: [Page] = []
+    class Accessory(Page):
+        """
+        A specialisation of Page that can be added to the systray.
+
+        Accessories do not have their own update/draw cycle, and are
+        ticked by the systray itself.
+
+        As they appear in the tray for all pages, they can be used for
+        things like clocks, or buttons that open additional UI elements
+        or controls.
+        """
+
+        POSITION_LEADING = "leading"
+        POSITION_TRAILING = "trailing"
+
+        def size(self, max_size: Size, window_manager: "WindowManager") -> Size:
+            """
+            Determines the size of the accessory, this must fit within
+            the specified maximum size..
+
+            This must be implemented by accessories and will be used to
+            determine the absolute screen region available to the
+            accessory for content.
+
+            :param max_size: The total available space for the accessory.
+            :param window_manager: The window manager the accessory will
+              be drawn by.
+            :return: The size of the supplied region used by the accessory.
+            """
+            raise NotImplementedError("Accessory must implement size to return the used region")
+
+    accessory_positions = (Accessory.POSITION_LEADING, Accessory.POSITION_TRAILING)
+    """
+    A list of valid accessory positions.
+    """
+
+    __os: OS
+
+    __pages: [Page]
     __page_radio_button: RadioButton = None
+
+    __leading_accessories: [Accessory]
+    __leading_accessory_regions: [Region]
+    __trailing_accessories: [Accessory]
+    __trailing_accessory_regions: [Region]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.__pages = []
+        self.__leading_accessories = []
+        self.__leading_accessory_regions = []
+        self.__trailing_accessories = []
+        self.__trailing_accessory_regions = []
 
     def setup(self, region: Region, window_manager: "WindowManager"):
         """
         Ensure we have controls for the wm's pages, and they're in the
-        right place.
+        right place. Calculates screen regions for any registered
+        accessories.
         """
 
         self._controls = []
+        self.__page_radio_button = None
+        self.__os = window_manager.os
+
+        pager_region = self.__setup_accessories(region, window_manager)
+        self.__setup_page_switcher(pager_region, window_manager)
+
+    def set_current_page(self, page: Page):
+        """
+        Update which page is considered current.
+        """
+        if page not in self.__pages:
+            return
+
+        page_index = self.__pages.index(page)
+        if radio := self.__page_radio_button:
+            radio.set_current_index(page_index)
+
+        self.needs_update = True
+
+    def add_accessory(self, accessory: Accessory, position: str, index: int = -1):
+        """
+        Adds an accessory to the systray. These can be drawn
+        before/after the page selector.
+
+        :param accessory: The accessory to add.
+        :param position: Where the accessory should be drawn, relative to
+          the page switcher. See accessory_positions.
+        :param index: Where to insert the accessory relative to other
+          accessories in the same position.
+        :raises ValueError: If an unknown position is specified.
+        """
+        if not isinstance(accessory, Systray.Accessory):
+            raise ValueError(f"Must be an instance of {Systray.Accessory}")
+        if position not in self.accessory_positions:
+            raise ValueError(
+                f"Unrecognised position '{position}' must be one of {self.accessory_positions}"
+            )
+
+        target = (
+            self.__leading_accessories
+            if position == self.accessory_positions[0]
+            else self.__trailing_accessories
+        )
+        if index < 0:
+            target.append(accessory)
+        else:
+            target.insert(index, accessory)
+
+    def remove_accessory(self, accessory: Accessory):
+        """
+        Removes an accessory previously registered with add_accessory.
+
+        :param accessory: The accessory to remove.
+        :raises ValueError: If the accessory was not registered.
+        """
+        if accessory in self.__leading_accessories:
+            accessory.teardown()
+            self.__leading_accessories.remove(accessory)
+        elif accessory in self.__trailing_accessories:
+            accessory.teardown()
+            self.__trailing_accessories.remove(accessory)
+        else:
+            raise ValueError("Unkown accessory")
+
+    def accessories(self) -> (tuple[Accessory], tuple[Accessory]):
+        """
+        Lists the accessories currently registered with the systray.
+
+        :return: Lists of leading and trailing accessories.
+        """
+        return tuple(self.__leading_accessories), tuple(self.__trailing_accessories)
+
+    def will_show(self):
+        for accessory in self.__leading_accessories:
+            accessory.will_show()
+        for accessory in self.__trailing_accessories:
+            accessory.will_show()
+
+    def will_hide(self):
+        for accessory in self.__leading_accessories:
+            accessory.will_hide()
+        for accessory in self.__trailing_accessories:
+            accessory.will_hide()
+
+    def teardown(self):
+        for accessory in self.__leading_accessories:
+            accessory.teardown()
+        for accessory in self.__trailing_accessories:
+            accessory.teardown()
+
+    def _tick(self, region: Region, window_manager: "WindowManager"):
+        """
+        Re-implements _tick to draw the systray background, and _tick
+        the systray accessories.
+        """
+        display = window_manager.display
+        touch = window_manager.os.touch
+        theme = window_manager.theme
+
+        for control in self._controls:
+            control.process_touch_state(touch)
+
+        theme.draw_systray(display, region)
+
+        for accessory, acc_region in zip(
+            self.__leading_accessories, self.__leading_accessory_regions
+        ):
+            accessory._tick(acc_region, window_manager)
+        for accessory, acc_region in zip(
+            self.__trailing_accessories, self.__trailing_accessory_regions
+        ):
+            accessory._tick(acc_region, window_manager)
+
+        for control in self._controls:
+            control.draw(display, theme)
+
+    def __setup_accessories(self, region: Region, window_manager: "WindowManager") -> Region:
+        """
+        Configures accessories, and returns the region available for the
+        pager.
+        """
+        for accessory_list, region_list, trailing in (
+            (self.__leading_accessories, self.__leading_accessory_regions, False),
+            (self.__trailing_accessories, self.__trailing_accessory_regions, True),
+        ):
+            region_list.clear()
+            if accessory_list:
+                region, accessory_regions = self.__setup_positional_accesories(
+                    region, accessory_list, window_manager, trailing=trailing
+                )
+                region_list.extend(accessory_regions)
+
+        return region
+
+    def __setup_positional_accesories(
+        self,
+        region: Region,
+        accessories: [Accessory],
+        window_manager: "WindowManager",
+        trailing: bool = False,
+    ) -> (Region, [Region]):
+        """
+        Calls size and setup for the supplied accessories, with an
+        increasingly constrained region, based on the space used by the
+        last accessory.
+
+        Note: This naive version makes no attempts to enforce bounds.
+        """
+        regions = []
+        for accessory in accessories:
+            acc_size = accessory.size(Size(region.width, region.height), window_manager)
+            remaning_width = region.width - acc_size.width
+            acc_region = Region(
+                region.x + remaning_width if trailing else region.x,
+                region.y,
+                acc_size.width,
+                acc_size.height,
+            )
+            accessory.setup(acc_region, window_manager)
+            regions.append(acc_region)
+            region = Region(
+                region.x if trailing else region.x + acc_size.width,
+                region.y,
+                remaning_width,
+                region.height,
+            )
+        return region, regions
+
+    def __setup_page_switcher(self, region: Region, window_manager: "WindowManager"):
+
         self.__page_radio_button = None
 
         self.__pages = window_manager.pages()
@@ -999,19 +1222,6 @@ class _Systray(Page):
         self.__page_radio_button.on_current_index_changed = page_index_changed
 
         self._controls.append(self.__page_radio_button)
-
-    def set_current_page(self, page: Page):
-        """
-        Update which page is considered current.
-        """
-        if page not in self.__pages:
-            return
-
-        page_index = self.__pages.index(page)
-        if radio := self.__page_radio_button:
-            radio.set_current_index(page_index)
-
-        self.needs_update = True
 
 
 class WindowManager:
@@ -1049,7 +1259,7 @@ class WindowManager:
     __systray_position: str = "bottom"
     __systray_region: Region
 
-    __systray_page: _Systray | None = None
+    __systray_page: Systray | None = None
     __systray_task: OS.Task = None
     __systray_needs_setup: bool = True
     __systray_needs_update: bool = True
@@ -1072,6 +1282,7 @@ class WindowManager:
         self.theme = theme or DefaultTheme()
         self.theme.setup(self.display)
 
+        self.__create_systray()
         self.set_systray_visible(systray_visible)
 
         # As we use the main os run loop to run pages (with their
@@ -1138,14 +1349,48 @@ class WindowManager:
         """
         Sets whether the systray is visible after the next tick.
         """
-        if is_visible == self.systray_visible:
+        if is_visible == self.__systray_visible:
             return
         self.__systray_visible = is_visible
         self.__update_regions()
 
+    def add_systray_accessory(self, accessory: Systray.Accessory, position: str, index: int = -1):
+        """
+        Adds an accessory to the systray. These can be drawn
+        before/after the page selector.
+
+        :param accessory: The accessory to add.
+        :param position: Where the accessory should be drawn, relative to
+          the page switcher. See accessory_positions.
+        :param index: Where to insert the accessory relative to other
+          accessories in the same position.
+        :raises ValueError: If an unknown position is specified.
+        """
+        self.__systray_page.add_accessory(accessory, position=position, index=index)
+        self.__systray_needs_setup = True
+
+    def remove_systray_accessory(self, accessory: Systray.Accessory):
+        """
+        Removes a previously registered accessory.
+
+        :param accessory: The accessory to remove.
+        :raises ValueError: If the accessory was not registered.
+        """
+        self.__systray_page.remove_accessory(accessory)
+        self.__systray_needs_setup = True
+
+    def systray_accessories(self) -> (tuple[Systray.Accessory], tuple[Systray.Accessory]):
+        """
+        Lists the accessories currently registered with the systray.
+
+        :return: A tuple containing lists of leading and trailing
+          accessories.
+        """
+        return self.__systray_page.accessories()
+
     def __update_regions(self):
         content_region, systray_region = self.__calculate_regions(
-            self.display, self.systray_visible, self.systray_position, self.theme
+            self.display, self.__systray_visible, self.systray_position, self.theme
         )
         self.__set_content_region(content_region)
         self.__set_systray_region(systray_region)
@@ -1362,34 +1607,39 @@ class WindowManager:
 
         self.__last_page = self.__current_page
 
+    def __create_systray(self):
+        """
+        Creates the systray and registers its task.
+        """
+        self.__systray_page = Systray()
+        self.__systray_task = self.os.add_task(
+            self.__tick_systray, execution_frequency=1, active=False
+        )
+
     def __update_systray(self):
         """
         Handles setup, configuration and update of systray state.
+
+        TODO: This needs factoring out into Page.needs_setup or similar.
         """
+        self.__systray_task.active = self.__systray_visible
+
         if self.__systray_needs_setup:
-            if self.systray_visible:
-                if not self.__systray_page:
-                    self.__systray_page = _Systray()
-                    self.__systray_task = self.os.add_task(
-                        self.__tick_systray, execution_frequency=1
-                    )
+            if self.__systray_visible:
                 self.__systray_page.setup(self.__systray_region, self)
+                self.__systray_page.will_show()
                 self.__systray_page.needs_update = True
             else:
-                if self.__systray_page:
-                    self.__systray_page.teardown()
-                    self.os.remove_task(self.__systray_task)
-                    self.__systray_task = None
-                self.__systray_page = None
+                self.__systray_page.will_hide()
+                self.__systray_page.teardown()
 
-        elif self.__systray_needs_update:
-            if self.__systray_page:
-                self.__systray_page.set_current_page(self.__current_page)
+        elif self.__systray_needs_update and self.__systray_visible:
+            self.__systray_page.set_current_page(self.__current_page)
 
         self.__systray_needs_setup = False
         self.__systray_needs_update = False
 
-        if self.__systray_page and self.__systray_page.needs_update:
+        if self.__systray_visible and self.__systray_page.needs_update:
             self.__systray_task.enqueue()
             self.__systray_page.needs_update = False
 
