@@ -11,6 +11,7 @@ TODO: Document the architecture of the UI Layer
 
 import asyncio
 import math
+import time
 
 from collections import namedtuple
 
@@ -23,6 +24,7 @@ from tmos import OS, Region, Size, MSG_WARNING, MSG_SEVERITY_NAMES
 
 
 __all__ = [
+    "ClockAccessory",
     "Control",
     "DefaultTheme",
     "Page",
@@ -1666,3 +1668,21 @@ class WindowManager:
             Region(0, content_y, display_width, content_height),
             Region(0, systray_y, display_width, theme.systray_height),
         )
+
+
+class ClockAccessory(Systray.Accessory):
+    """
+    A very basic, badly laid out clock.
+    """
+
+    def size(self, max_size: Region, _: WindowManager) -> Size:
+        return Size(45, max_size.height)
+
+    def _draw(self, display: PicoGraphics, region: Region, theme: Theme):
+        p = theme.padding
+        _, month, day, hours, mins, secs, __, ___ = time.localtime()
+        line_height = theme.line_spacing()
+        y = (region.height // 2) - line_height
+        display.set_pen(theme.foreground_pen)
+        theme.text(display, f"{hours:02d}:{mins:02d}:{secs:02d}", *to_screen(region, p, y))
+        theme.text(display, f"{day:02d}/{month:02d}", *to_screen(region, p, y + line_height))
