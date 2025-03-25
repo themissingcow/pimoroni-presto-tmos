@@ -1575,12 +1575,6 @@ class WindowManager:
         # but would be nice to make this stable. Worst case it the new
         # page doesn't update until the next tick...
 
-        for page in self.__pages:
-            if not page.needs_update:
-                continue
-            page.needs_update = False
-            self.__page_tasks[page].enqueue()
-
         if self.__pages_need_setup:
             for page in self.__pages:
                 page.setup(self.content_region, self)
@@ -1591,6 +1585,12 @@ class WindowManager:
                 # intuitive too for some... 🤷
                 page.needs_update = True
             self.__pages_need_setup = False
+
+        for page in self.__pages:
+            if not page.needs_update:
+                continue
+            page.needs_update = False
+            self.__page_tasks[page].enqueue()
 
         if self.__current_page == self.__last_page:
             return
