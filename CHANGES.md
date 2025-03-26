@@ -22,6 +22,8 @@ v1.0.0-alpha.x
 - Fixed a bug where setting an already active task to active would cause
   it to be enqueued.
 - Fixed the `ClockAccessory` width when `full_res=True` was used.
+- Fixed a bug in setting line spacing for vector fonts that meant
+  multi-line text would have generally wrong line spacing.
 
 v1.0.0-alpha.5
 ==============

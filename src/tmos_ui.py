@@ -224,6 +224,9 @@ class Theme:
         vector = PicoVector(display)
         vector.set_transform(self.__vector_transform)
         vector.set_antialiasing(picovector.ANTIALIAS_BEST)
+        # The default line height is a little large, this seems
+        # to be an integer percentage value so works across sizes.
+        vector.set_font_line_height(85)
         return vector
 
     @property
@@ -344,8 +347,6 @@ class Theme:
         """
         if self._use_vector_font_rendering:
             self._vector.set_font_size(self.text_scale(rel_scale))
-            # The default line height is a little large
-            self._vector.set_font_line_height(int(rel_scale * (self.base_font_scale * 1.3)))
             y += int(self.line_spacing(rel_scale) * 0.75)
             self._vector.text(text, x, y)
         else:
