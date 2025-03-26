@@ -1505,11 +1505,22 @@ class WindowManager:
         page.teardown()
 
         if self.__current_page is page:
-            self.set_current_page(self.__pages[-1])
+            if self.__pages:
+                self.set_current_page(self.__pages[-1])
+            else:
+                self.set_current_page(None)
 
         self.__pages_changed()
 
         self.os.post_message(f"Removed page '{page.title}'")
+
+    def remove_all_pages(self):
+        """
+        Removes all pages from the window manager.
+        """
+        pages = self.pages()
+        for page in pages:
+            self.remove_page(page)
 
     def pages(self) -> [Page]:
         """
@@ -1526,7 +1537,7 @@ class WindowManager:
           add_page.
         :raises ValueError: If the supplied page has not been registered.
         """
-        if page not in self.__pages:
+        if page is not None and page not in self.__pages:
             raise ValueError(f"{page.title} is not a registered page")
         self.__current_page = page
         self.__systray_needs_update = True

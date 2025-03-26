@@ -90,6 +90,15 @@ class Test_WindowManager_pages:
         a_wm.remove_page(a_page)
         assert a_wm.pages() == ()
 
+    def test_when_last_page_removed_then_current_page_is_none(self, a_wm, a_page):
+
+        a_wm.add_page(a_page)
+        a_wm.os.add_task(a_wm.os.stop)
+        a_wm.os.run()
+        a_wm.remove_page(a_page)
+        a_wm.os.run()
+        assert a_wm.current_page is None
+
     def test_when_added_with_make_current_not_specified_then_page_is_not_made_current(
         self, a_wm, a_page
     ):
@@ -176,6 +185,21 @@ class Test_WindowManager_pages:
         a_wm.os.run()
 
         page_a.tick.assert_not_called()
+
+    def test_when_no_page_set_current_then_no_page_ticks(self, a_wm, a_mock_page_factory):
+
+        page_a = a_mock_page_factory()
+        page_b = a_mock_page_factory()
+        a_wm.add_page(page_a)
+        a_wm.add_page(page_b, make_current=True)
+        a_wm.os.add_task(a_wm.os.stop)
+        a_wm.os.run()
+        page_a.tick.assert_not_called()
+        page_b.tick.assert_called_once()
+        page_b.reset_mock()
+        a_wm.set_current_page(None)
+        a_wm.os.run()
+        page_a.tick.assert_not_called()
         page_b.tick.assert_not_called()
 
     def test_when_page_made_current_then_page_ticks(self, a_wm):
@@ -253,6 +277,25 @@ class Test_WindowManager_pages:
             a_wm.add_page(p, make_current=False)
         a_wm.prev_page()
         assert a_wm.current_page is some_pages[-1]
+
+    def test_when_remove_all_pages_called_with_no_pages_then_is_noop(self, a_wm):
+
+        a_wm.remove_all_pages()
+
+    def test_when_remove_all_pages_called_with_pages_then_pages_torn_down_and_current_page_is_none(
+        self, a_wm, a_mock_page_factory
+    ):
+        pages = [a_mock_page_factory(), a_mock_page_factory()]
+        for p in pages:
+            a_wm.add_page(p)
+        a_wm.prev_page()
+        a_wm.os.add_task(a_wm.os.stop)
+        a_wm.os.run()
+        a_wm.remove_all_pages()
+        a_wm.os.run()
+        assert a_wm.current_page is None
+        for p in pages:
+            p.teardown.assert_called_once()
 
 
 class Test_WindowManager_update_display:

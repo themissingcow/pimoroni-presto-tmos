@@ -14,6 +14,8 @@ v1.0.0-alpha.x
 
 ## New Features
 
+- Added `WindowManager.remove_all_pages` to allow all registered pages
+  to be removed.
 - Added the ability to show a page modally over the current page and
   systray using `WindowManager.show_modal_page` and
   `WindowManager.clear_modal_page`.
@@ -41,6 +43,11 @@ v1.0.0-alpha.x
 - Improved estimation of text hight (see: `Theme.base_text_height`), and
   consequently better centering of text within a region (e.g. button
   titles).
+
+## Bug fixes
+
+- Fixed an index out of range exception when `WindowManager.remove_page`
+  was called on the last page, when it was current.
 
 v1.0.0-alpha.4
 ==============
