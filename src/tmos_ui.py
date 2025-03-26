@@ -1252,6 +1252,8 @@ class WindowManager:
     __pages: []
     __page_tasks: {Page, OS.Task}
     __current_page: Page = None
+    __modal_page: Page = None
+    __modal_page_task: OS.Task = None
     __last_page: Page = None
     __pages_need_setup: bool = True
 
@@ -1502,6 +1504,53 @@ class WindowManager:
         self.__current_page = page
         self.__systray_needs_update = True
 
+    def show_modal_page(self, page: Page):
+        """
+        Shows the supplied page as a modal overlay using the full
+        available display area.
+
+        Updates of the current page and systray are suspended whilst the
+        modal page is shown. The page can be dismissed with
+        hide_modal_page.
+
+        :param page: The page to display modally.
+        """
+        if existing := self.__modal_page:
+            self.os.remove_task(self.__modal_page_task)
+            existing.will_hide()
+            existing.teardown()
+
+        self.__modal_page = page
+        self.__modal_page_task = self.os.add_task(lambda: page.tick(modal_region, self))
+
+        self.__update_page_tasks(page)
+        self.__systray_task.active = False
+
+        w, h = self.display.get_bounds()
+        modal_region = Region(0, 0, w, h)
+
+        self.os.post_message(f"Showing modal page '{page.title}'")
+
+        page.setup(modal_region, self)
+        page.will_show()
+
+    def clear_modal_page(self):
+        """
+        Removes any current modal page. This is a no-op if no modal page
+        is being displayed.
+
+        See: show_modal_page
+        """
+        if not self.__modal_page:
+            return
+
+        self.os.remove_task(self.__modal_page_task)
+        self.__modal_page.will_hide()
+        self.__modal_page.teardown()
+        self.__modal_page = None
+        self.__update_page_tasks(self.__current_page)
+        self.__update_systray()
+
     def next_page(self):
         """
         Changes the current page to the next one in the page list,
@@ -1572,6 +1621,9 @@ class WindowManager:
         active states of the page tasks in the run loop.
         """
 
+        if self.__modal_page:
+            return
+
         # Potential flaw here is that this relies on the WM task being
         # first in the list. Shouldn't be a problem in common scenarios,
         # but would be nice to make this stable. Worst case it the new
@@ -1603,11 +1655,19 @@ class WindowManager:
         if self.__current_page:
             self.__current_page.will_show()
 
-        # Update page task active states so only the current page runs
-        for page, task in self.__page_tasks.items():
-            task.active = page is self.__current_page
-
+        self.__update_page_tasks(self.__current_page)
         self.__last_page = self.__current_page
+
+    def __update_page_tasks(self, active_page: Page):
+        """
+        Ensures only the page task for the supplied page is active.
+
+        :param active_page: The page whose task to activate, its ok if
+          this page doesn't have a task, in which case all registered
+          page tasks will be inactive.
+        """
+        for page, task in self.__page_tasks.items():
+            task.active = page is active_page
 
     def __create_systray(self):
         """
@@ -1624,6 +1684,9 @@ class WindowManager:
 
         TODO: This needs factoring out into Page.needs_setup or similar.
         """
+        if self.__modal_page:
+            return
+
         self.__systray_task.active = self.__systray_visible
 
         if self.__systray_needs_setup:

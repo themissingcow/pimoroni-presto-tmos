@@ -12,6 +12,9 @@ v1.0.0-alpha.x
 
 ## New Features
 
+- Added the ability to show a page modally over the current page and
+  systray using `WindowManager.show_modal_page` and
+  `WindowManager.clear_modal_page`.
 - Added a basic clock systray accessory (`ClockAccessory`)
 - Added 'accessories' to the systray. See `WindowManager.add_systray_accessory`,
   `WindowManager.remove_systray_accessory` and `Systray.Accessory`.

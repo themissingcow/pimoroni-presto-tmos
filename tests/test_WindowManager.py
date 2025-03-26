@@ -290,6 +290,96 @@ class Test_WindowManager_display_system_messages:
         assert wm.os_msg not in os_instance.message_handlers()
 
 
+class Test_WindowManager_modal_pages:
+
+    def test_when_modal_page_shown_then_uses_whole_screen(self, a_wm, a_mock_page):
+
+        a_wm.show_modal_page(a_mock_page)
+        a_wm.os.add_task(a_wm.os.stop)
+        a_wm.os.run()
+
+        w, h = a_wm.display.get_bounds()
+        expected_region = Region(0, 0, w, h)
+        a_mock_page.setup.assert_called_once_with(expected_region, a_wm)
+        a_mock_page.will_show.assert_called_once()
+        a_mock_page.tick.assert_called_once()
+
+    def test_when_modal_page_shown_then_other_pages_dont_update(
+        self, a_wm, a_mock_page, some_pages
+    ):
+        # Tenuous, but worth a check for now as it was a bug at one point!
+        a_wm.set_systray_visible(True)
+        systray_task = a_wm.os.tasks()[-1]
+        a_wm.add_page(a_mock_page, make_current=True)
+        a_wm.show_modal_page(some_pages[0])
+        a_wm.os.add_task(a_wm.os.stop)
+        a_wm.os.run()
+        assert systray_task.active is False
+        a_mock_page.tick.assert_not_called()
+
+    def test_when_second_modal_page_shown_over_first_then_previous_is_cleared_and_doesnt_update(
+        self, a_wm, a_mock_page_factory
+    ):
+        modal_a = a_mock_page_factory()
+        modal_b = a_mock_page_factory()
+        a_wm.os.add_task(a_wm.os.stop)
+        a_wm.show_modal_page(modal_a)
+        a_wm.os.run()
+        modal_a.tick.assert_called_once()
+        modal_a.reset_mock()
+        a_wm.show_modal_page(modal_b)
+        a_wm.os.run()
+        modal_a.tick.assert_not_called()
+        modal_a.will_hide.assert_called_once()
+        modal_a.teardown.assert_called_once()
+        modal_b.setup.assert_called_once()
+        modal_b.will_show.assert_called_once()
+        modal_b.tick.assert_called_once()
+
+    def test_when_modal_page_cleared_then_current_page_updates(
+        self, a_wm, a_mock_page, some_pages
+    ):
+
+        a_wm.set_systray_visible(True)
+        systray_task = a_wm.os.tasks()[-1]
+        # Ensure the current page is drawn once, so it will have
+        # will_show called, so we can test that it isn't called later...
+        a_wm.add_page(a_mock_page, make_current=True)
+        a_wm.os.add_task(a_wm.os.stop)
+        a_wm.os.run()
+        a_mock_page.reset_mock()
+        a_wm.show_modal_page(some_pages[0])
+        a_wm.os.run()
+        assert systray_task.active is False
+        a_mock_page.will_hide.assert_not_called()
+        a_mock_page.tick.assert_not_called()
+        a_mock_page.reset_mock()
+        a_wm.clear_modal_page()
+        a_wm.os.run()
+        a_mock_page.will_show.assert_not_called()
+        a_mock_page.tick.assert_called_once()
+        assert systray_task.active is True
+
+    def test_when_modal_page_cleared_then_modal_page_torn_down_and_not_updated(
+        self, a_wm, a_mock_page, some_pages
+    ):
+
+        a_wm.add_page(some_pages[0], make_current=True)
+        a_wm.show_modal_page(a_mock_page)
+        a_wm.os.add_task(a_wm.os.stop)
+        a_wm.os.run()
+        a_mock_page.tick.assert_called_once()
+        a_mock_page.reset_mock()
+        a_wm.clear_modal_page()
+        a_wm.os.run()
+        a_mock_page.tick.assert_not_called()
+        a_mock_page.will_hide.assert_called_once()
+        a_mock_page.teardown.assert_called_once()
+
+    def test_when_no_modal_page_then_clear_is_a_noop(self, a_wm, a_mock_page):
+        a_wm.clear_modal_page()
+
+
 @pytest.fixture
 def a_wm():
     os_instance = OS()
@@ -305,12 +395,20 @@ def a_page():
 
 
 @pytest.fixture
-def a_mock_page():
-    mock_page = mock.create_autospec(Page)
-    mock_page.execution_frequency = None
-    mock_page.title = "Mock Page"
-    mock_page.needs_update = False
-    return mock_page
+def a_mock_page_factory():
+    def make():
+        mock_page = mock.create_autospec(Page)
+        mock_page.execution_frequency = None
+        mock_page.title = "Mock Page"
+        mock_page.needs_update = False
+        return mock_page
+
+    return make
+
+
+@pytest.fixture
+def a_mock_page(a_mock_page_factory):
+    return a_mock_page_factory()
 
 
 @pytest.fixture
