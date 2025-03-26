@@ -115,7 +115,7 @@ class SimplePage(StaticPage):
         self.bg = bg
 
     def _draw(self, display: "PicoGraphics", region: "Region", theme: "Theme"):
-        display.set_pen(self.bg if self.bg else theme.background_pen)
+        display.set_pen(self.bg or theme.background_pen)
         display.rectangle(*region)
         display.set_pen(theme.foreground_pen)
         theme.text(display, self.text, *to_screen(region, theme.padding, theme.padding))
