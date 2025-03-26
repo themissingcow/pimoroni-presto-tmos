@@ -73,7 +73,7 @@ class Test_WindowManager_init:
         task_fns = [t.fn for t in os_instance.tasks()]
         # There may be other tasks (eg: systray tick) that we don't care
         # about in this specific test.
-        assert task_fns[:len(mock_task_fns) + 1] == expected_task_fns
+        assert task_fns[: len(mock_task_fns) + 1] == expected_task_fns
 
 
 class Test_WindowManager_pages:
