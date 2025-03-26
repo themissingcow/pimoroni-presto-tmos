@@ -13,8 +13,6 @@ import asyncio
 import math
 import time
 
-from collections import namedtuple
-
 from picographics import PicoGraphics
 
 import picovector
