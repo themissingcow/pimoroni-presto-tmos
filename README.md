@@ -49,6 +49,8 @@ so it will be packaged up into `mip` at some point
 4. Configure as desired, and register one or more tasks to run.
 5. `boot` the OS with `run=True`.
 
+### The low-level tasks API
+
 The following example shows how to setup the Presto with  Wifi, sync the
 RTC clock using NTP, and update the display every second with the
 current time. The display backlight will dim after a while, and sleep
@@ -85,6 +87,8 @@ def clock():
 os.add_task(clock, execution_frequency=1)
 os.boot(wifi=True, use_ntp=True, run=True)
 ```
+
+### The high-level `App` and `Page` API
 
 This example shows how to use the `AppManager` to switch between
 multiple apps, each with their own set of pages:
