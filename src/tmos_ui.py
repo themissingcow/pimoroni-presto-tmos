@@ -1771,8 +1771,15 @@ class ClockAccessory(Systray.Accessory):
     def _draw(self, display: PicoGraphics, region: Region, theme: Theme):
         p = theme.padding
         _, month, day, hours, mins, secs, __, ___ = time.localtime()
-        line_height = theme.line_spacing()
-        y = (region.height // 2) - line_height
+        text_height = theme.text_height()
         display.set_pen(theme.foreground_pen)
-        theme.text(display, f"{hours:02d}:{mins:02d}:{secs:02d}", *to_screen(region, p, y))
-        theme.text(display, f"{day:02d}/{month:02d}", *to_screen(region, p, y + line_height))
+        theme.text(
+            display,
+            f"{hours:02d}:{mins:02d}:{secs:02d}",
+            *to_screen(region, p, region.height // 2 - text_height - p // 4),
+        )
+        theme.text(
+            display,
+            f"{day:02d}/{month:02d}",
+            *to_screen(region, p, region.height // 2 + p // 4),
+        )
