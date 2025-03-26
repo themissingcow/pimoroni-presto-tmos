@@ -28,7 +28,9 @@ to devices easier.
   - [x] Tabbed UI for page switching
   - [x] Themes with vector font support
   - [ ] Brightness controls
-  - [ ] Clock
+  - [x] Clock
+  - [x] Modal pop-over pages
+- [ ] App switcher
 
 ## Getting started
 
