@@ -114,7 +114,9 @@ class AppManager:
     __current_app: App | None = None
     __window_manager: WindowManager
 
-    def __init__(self, window_manager: WindowManager) -> None:
+    def __init__(
+        self, window_manager: WindowManager, systray_position=Systray.Accessory.POSITION_LEADING
+    ) -> None:
         """
         Constructs a new instance that will manage the page list of the
         supplied window manager.
@@ -125,6 +127,8 @@ class AppManager:
         self.__apps = []
         self.__current_app = None
         self.__window_manager = window_manager
+        if systray_position:
+            self.__window_manager.add_systray_accessory(self.systray_accessory(), systray_position)
 
     def systray_accessory(self) -> Systray.Accessory:
         """

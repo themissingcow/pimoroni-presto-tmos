@@ -11,8 +11,8 @@ import pytest
 from picographics import PicoGraphics
 
 from tmos import OS
-from tmos_ui import DefaultTheme, Page, WindowManager
-from tmos_apps import App, AppManager
+from tmos_ui import DefaultTheme, Page, Systray, WindowManager
+from tmos_apps import App, AppManager, AppManagerAccessory
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
 # pylint: disable=invalid-name, redefined-outer-name
@@ -47,6 +47,47 @@ class Test_AppManager_apps:
         AppManager(a_wm)
         assert a_wm.pages() == expected_pages
         assert a_wm.current_page == expected_current
+
+    def test_when_constructed_without_systray_position_then_accessory_added_to_systray_leading(
+        self, a_wm
+    ):
+
+        _, expected_trailing = a_wm.systray_accessories()
+        AppManager(a_wm, systray_position=Systray.Accessory.POSITION_LEADING)
+        leading, trailing = a_wm.systray_accessories()
+        assert isinstance(leading[-1], AppManagerAccessory)
+        assert trailing == expected_trailing
+
+    def test_when_constructed_with_systray_position_none_then_systray_unchanged(self, a_wm):
+
+        expected_accessories = a_wm.systray_accessories()
+        AppManager(a_wm, systray_position=None)
+        assert a_wm.systray_accessories() == expected_accessories
+
+    def test_when_constructed_with_systray_position_leading_then_accessory_added_to_systray_leading(
+        self, a_wm
+    ):
+
+        _, expected_trailing = a_wm.systray_accessories()
+        AppManager(a_wm, systray_position=Systray.Accessory.POSITION_LEADING)
+        leading, trailing = a_wm.systray_accessories()
+        assert isinstance(leading[-1], AppManagerAccessory)
+        assert trailing == expected_trailing
+
+    def test_when_constructed_with_systray_position_trailing_then_accessory_added_to_systray_trailing(
+        self, a_wm
+    ):
+
+        expected_leading, _ = a_wm.systray_accessories()
+        AppManager(a_wm, systray_position=Systray.Accessory.POSITION_TRAILING)
+        leading, trailing = a_wm.systray_accessories()
+        assert isinstance(trailing[-1], AppManagerAccessory)
+        assert leading == expected_leading
+
+    def test_when_constructed_with_invalid_systray_position_then_ValueError_raised(self, a_wm):
+
+        with pytest.raises(ValueError):
+            AppManager(a_wm, systray_position="cat")
 
     def test_when_app_added_then_in_apps_list(self, an_app_manager, an_app_factory):
 

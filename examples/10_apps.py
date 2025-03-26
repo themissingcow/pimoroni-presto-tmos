@@ -6,15 +6,13 @@ An demonstration of apps
 from presto import PicoGraphics
 
 from tmos import OS
-from tmos_ui import StaticPage, Systray, WindowManager, to_screen
+from tmos_ui import StaticPage, WindowManager, to_screen
 from tmos_apps import App, AppManager
 
 os = OS(layers=1, full_res=False)
 # Show the systray by default to make the modality more obvious.
 wm = WindowManager(os, systray_visible=True)
 apps = AppManager(wm)
-wm.add_systray_accessory(apps.systray_accessory(), Systray.Accessory.POSITION_LEADING)
-
 
 class SimplePage(StaticPage):
     """

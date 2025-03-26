@@ -91,13 +91,12 @@ multiple apps, each with their own set of pages:
 
 ```python
 from tmos import OS
-from tmos_ui import StaticPage, Systray, WindowManager, to_screen
+from tmos_ui import StaticPage, WindowManager, to_screen
 from tmos_apps import App, AppManager
 
 os = OS(layers=1)
 wm = WindowManager(os, systray_visible=True)
 apps = AppManager(wm)
-wm.add_systray_accessory(apps.systray_accessory(), Systray.Accessory.POSITION_LEADING)
 
 
 class SimplePage(StaticPage):
