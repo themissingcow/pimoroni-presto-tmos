@@ -286,7 +286,7 @@ class OS:
             active: bool = True,
         ) -> None:
             self.fn = fn
-            self.active = active
+            self.__active = active
             self.last_execution_us = None
             self.execution_interval_us = execution_interval_us
             self.touch_forces_execution = touch_forces_execution
@@ -303,11 +303,12 @@ class OS:
             """
             Sets if the task should be executed.
             """
+            if self.__active is is_active:
+                return
             self.__active = is_active
             # Reset last execution when re-activated, so it will run on
             # the next tick. This prevents a delay if the task was quickly
             # activated and re-activated.
-            # Use None, to avoid and edge cases when values wrap, etc.
             self.enqueue()
 
         def enqueue(self):
@@ -315,6 +316,10 @@ class OS:
             Ensures the task will execute at the next available run loop
             iteration.
             """
+            # WARNING!!!! update the implementation of active above if
+            # this ever changes to actually schedule the task vs reset
+            # the last execution.
+            # Use None, to avoid and edge cases when values wrap, etc.
             self.last_execution_us = None
 
     #

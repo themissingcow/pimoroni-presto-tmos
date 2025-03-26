@@ -377,11 +377,21 @@ class Test_OS_active:
 
         expected_fn = mock.Mock()
         os_instance = OS()
-        task = os_instance.add_task(expected_fn)
+        task = os_instance.add_task(expected_fn, active=False)
         task.last_execution_us = 1
         task.active = True
         assert task.last_execution_us is None
 
+    def test_when_task_active_set_to_existing_value_then_last_execution_time_not_reset(self):
+
+        expected_fn = mock.Mock()
+        os_instance = OS()
+        task = os_instance.add_task(expected_fn, active=True)
+        task.last_execution_us = 1
+        task.active = True
+        assert task.last_execution_us == 1
+        task.active = True
+        assert task.last_execution_us == 1
 
 class Test_OS_tasks:
 

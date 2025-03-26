@@ -7,6 +7,11 @@ v1.0.0-alpha.x
   the os run loop ahead of page update tasks when the app is active. See
   `App.tasks`.
 
+## Bug Fixes
+
+- Fixed a bug where setting an already active task to active would cause
+  it to be enqueued.
+
 v1.0.0-alpha.5
 ==============
 
