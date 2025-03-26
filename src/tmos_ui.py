@@ -490,6 +490,24 @@ class Theme:
         """
         self.draw_button_title(display, region, is_pressed, title, title_rel_scale=title_rel_scale)
 
+    def draw_app_switcher_button(self, display: PicoGraphics, region: Region, is_pressed: bool):
+        """
+        Drawn a button to launch the app switcher.
+        """
+        num_bars = 3
+        spacing = 6 if self._is_full_res else 3
+        v_inset = spacing
+        x = region.x + spacing
+        y = region.y + spacing + v_inset
+        width = region.width - spacing - spacing
+        available_height = region.height - spacing - v_inset - v_inset - spacing
+        total_bar_height = available_height - (spacing * (num_bars - 1))
+        bar_height = int(round(total_bar_height / num_bars))
+        display.set_pen(self.background_pen if is_pressed else self.foreground_pen)
+        for _ in range(num_bars):
+            display.rectangle(x, y, width, bar_height)
+            y += bar_height + spacing
+
 
 class DefaultTheme(Theme):
     """

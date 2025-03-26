@@ -10,8 +10,9 @@ A basic single-tasking "OS" for the [Pimoroni Presto](https://shop.pimoroni.com/
 It hopes to simplify writing simple interactive applications based
 around paged displays of information.
 
-It consists of a couple of single-file modules, to make deployment
-to devices easier.
+It (currently) consists of a couple of single-file modules, to make deployment
+to devices easier. That is starting to get a bit unmaintainable though
+so it will be packaged up into `mip` at some point
 
 ## Features
 
@@ -30,15 +31,18 @@ to devices easier.
   - [ ] Brightness controls
   - [x] Clock
   - [x] Modal pop-over pages
-- [ ] App switcher
+- [x] App switcher
+- [ ] `mip` package
 
 ## Getting started
 
 > [!CAUTION]
 > This project is in its early days and is subject to breaking changes.
 
-1. Upload [tmos.py](src/tmos.py) to your Presto (and
-   [tmos_ui.py](src/tmos_ui.py) if you want the window manager/themes).
+1. Upload [tmos.py](src/tmos.py) to your Presto
+   - Include [tmos_ui.py](src/tmos_ui.py) if you want the window
+     manager/themes.
+   - Include [tmos_apps.py](src/tmos_apps.py) if you want the app manager
 2. If you want to use WiFI, configure
    [`secrets.py`](https://github.com/pimoroni/pimoroni-pico/blob/main/micropython/examples/pico_wireless/secrets.py) accordingly.
 3. Create an instance of `tmos.OS`.
@@ -80,6 +84,70 @@ def clock():
 
 os.add_task(clock, execution_frequency=1)
 os.boot(wifi=True, use_ntp=True, run=True)
+```
+
+This example shows how to use the `AppManager` to switch between
+multiple apps, each with their own set of pages:
+
+```python
+from tmos import OS
+from tmos_ui import StaticPage, Systray, WindowManager, to_screen
+from tmos_apps import App, AppManager
+
+os = OS(layers=1)
+wm = WindowManager(os, systray_visible=True)
+apps = AppManager(wm)
+wm.add_systray_accessory(apps.systray_accessory(), Systray.Accessory.POSITION_LEADING)
+
+
+class SimplePage(StaticPage):
+    """
+    A simple page with a message and an optional custom color.
+    """
+
+    def __init__(self, title: str, text: str, bg=None):
+        super().__init__()
+        self.title = title
+        self.text = text
+        self.bg = bg
+
+    def _draw(self, display: "PicoGraphics", region: "Region", theme: "Theme"):
+        display.set_pen(self.bg if self.bg else theme.background_pen)
+        display.rectangle(*region)
+        display.set_pen(theme.foreground_pen)
+        theme.text(display, self.text, *to_screen(region, theme.padding, theme.padding))
+
+
+class ColorsApp(App):
+
+    YELLOW = wm.display.create_pen(255, 255, 100)
+    RED = wm.display.create_pen(255, 100, 100)
+
+    name = "Colors"
+
+    def pages(self):
+        return [
+            SimplePage("Yellow", "Like a lemon", self.YELLOW),
+            SimplePage("Red", "Like a thing that is red", self.RED),
+        ]
+
+
+class AnimalsApp(App):
+
+    name = "Animals"
+
+    def pages(self):
+        return [
+            SimplePage("Cat", "Cats are why the internet exists."),
+            SimplePage("Mouse", "Mice are small."),
+            SimplePage("Duck", "quaaaack."),
+        ]
+
+
+apps.add_app(ColorsApp(), make_current=True)
+apps.add_app(AnimalsApp())
+
+os.boot(run=True)
 ```
 
 See the [examples](examples) for more.

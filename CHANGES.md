@@ -16,6 +16,10 @@ v1.0.0-alpha.x
 
 ## New Features
 
+- Added `AppManager` an optional add-on that allows multiple apps to be
+  registered and switched between (see the [apps
+  example](examples/10_apps.py)). Each app has its own set of pages.
+  Only one app can be active at any time.
 - Added `Theme._is_full_res` to allow theme drawing to adapt to display
   resolution.
 - Added `WindowManager.remove_all_pages` to allow all registered pages
