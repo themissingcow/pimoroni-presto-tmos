@@ -1,16 +1,25 @@
 v1.0.0-alpha.x
 ==============
 
+## Breaking Changes
+
+- Renamed and refactored `Theme._is_full_res` to
+  `Theme.dpi_scale_factor`, to more usefully allow drawing code to adapt
+  to the `full_res=True` `Presto` kwarg.
+
 ## Improvements
 
 - Apps can now declare an ordered list of tasks that will be added to
   the os run loop ahead of page update tasks when the app is active. See
   `App.tasks`.
+- Added `WindowManager.dpi_scale_factor` to help write code that works
+  with either setting of the `full_res` `Presto` kwarg.
 
 ## Bug Fixes
 
 - Fixed a bug where setting an already active task to active would cause
   it to be enqueued.
+- Fixed the `ClockAccessory` width when `full_res=True` was used.
 
 v1.0.0-alpha.5
 ==============

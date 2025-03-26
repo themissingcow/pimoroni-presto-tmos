@@ -238,7 +238,8 @@ def a_mock_wm():
     m.os = OS()
     m.display = PicoGraphics()
     m.theme = DefaultTheme()
-    m.theme.setup(m.display)
+    w, _ = m.display.get_bounds()
+    m.theme.setup(m.display, w // 240)
     m.pages.return_value = (p1, p2)
     m.current_page = p1
     return m

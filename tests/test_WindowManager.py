@@ -28,13 +28,19 @@ class Test_WindowManager_init:
         wm = WindowManager(os_instance)
         assert isinstance(wm.theme, DefaultTheme)
 
-    def test_when_theme_supplied_then_setup_is_called_with_display(self):
+    def test_when_theme_supplied_then_setup_is_called_with_display_and_dpi(self):
 
         mock_theme = mock.create_autospec(Theme, instance=True)
 
         os_instance = OS()
+        os_instance.display.get_bounds.return_value = (240, 240)
         wm = WindowManager(os_instance, theme=mock_theme)
-        mock_theme.setup.assert_called_once_with(wm.display)
+        mock_theme.setup.assert_called_once_with(wm.display, 1)
+        mock_theme.reset_mock()
+        os_instance.display.get_bounds.return_value = (480, 480)
+        wm = WindowManager(os_instance, theme=mock_theme)
+        mock_theme.setup.assert_called_once_with(wm.display, 2)
+
 
     def test_when_created_then_content_region_matches_display_size(self):
 

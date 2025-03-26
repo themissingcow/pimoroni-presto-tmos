@@ -190,9 +190,10 @@ class Theme:
 
     _use_vector_font_rendering: bool = False
     _vector: PicoVector = None
-    _is_full_res: bool
 
-    def setup(self, display: PicoGraphics):
+    __dpi_scale_factor: int = None
+
+    def setup(self, display: PicoGraphics, dpi_scale_factor: int):
         """
         Configures the theme for the supplied display.
 
@@ -206,8 +207,7 @@ class Theme:
         The base class implementation must be called before any user
         code.
         """
-        w, _ = display.get_bounds()
-        self._is_full_res = w > 240
+        self.__dpi_scale_factor = dpi_scale_factor
 
         self._vector = self._create_picovector(display)
 
@@ -225,6 +225,14 @@ class Theme:
         vector.set_transform(self.__vector_transform)
         vector.set_antialiasing(picovector.ANTIALIAS_BEST)
         return vector
+
+    @property
+    def dpi_scale_factor(self) -> int:
+        """
+        The DPI scale factor, reference is 1 when full_res=False in the
+        Preso constructor (ie 240x240), and 2 when True (480x480).
+        """
+        return self.__dpi_scale_factor
 
     def text_scale(self, rel_scale: float = 1) -> int:
         """
@@ -495,7 +503,7 @@ class Theme:
         Drawn a button to launch the app switcher.
         """
         num_bars = 3
-        spacing = 6 if self._is_full_res else 3
+        spacing = 3 * self.dpi_scale_factor
         v_inset = spacing
         x = region.x + spacing
         y = region.y + spacing + v_inset
@@ -521,10 +529,10 @@ class DefaultTheme(Theme):
     base_line_height = 10
     systray_height = 30
 
-    def setup(self, display: PicoGraphics):
+    def setup(self, display: PicoGraphics, dpi_scale_factor: int):
 
         # This must be called first
-        super().setup(display)
+        super().setup(display, dpi_scale_factor)
 
         self.foreground_pen = display.create_pen(0, 0, 0)
         self.background_pen = display.create_pen(255, 255, 255)
@@ -532,13 +540,12 @@ class DefaultTheme(Theme):
         self.error_pen = display.create_pen(200, 0, 0)
         self.control_height = 3 * self.base_line_height
 
-        if self._is_full_res:
-            self.padding *= 2
-            self.base_font_scale *= 2
-            self.base_text_height *= 2
-            self.base_line_height *= 2
-            self.control_height *= 2
-            self.systray_height *= 2
+        self.padding *= dpi_scale_factor
+        self.base_font_scale *= dpi_scale_factor
+        self.base_text_height *= dpi_scale_factor
+        self.base_line_height *= dpi_scale_factor
+        self.control_height *= dpi_scale_factor
+        self.systray_height *= dpi_scale_factor
 
 
 class Control:
@@ -1298,6 +1305,8 @@ class WindowManager:
 
     os: OS
 
+    __dpi_scale_factor: int
+
     __pages: []
     __page_tasks: {Page, OS.Task}
     __current_page: Page = None
@@ -1332,8 +1341,10 @@ class WindowManager:
 
         self.os = os_
         self.display = os_.display
+        w, _ = self.display.get_bounds()
+        self.__dpi_scale_factor = w // 240
         self.theme = theme or DefaultTheme()
-        self.theme.setup(self.display)
+        self.theme.setup(self.display, self.__dpi_scale_factor)
 
         self.__create_systray()
         self.set_systray_visible(systray_visible)
@@ -1632,6 +1643,10 @@ class WindowManager:
         """
         return self.__current_page
 
+    @property
+    def dpi_scale_factor(self) -> int:
+        return self.__dpi_scale_factor
+
     def __change_page(self, offset, fallback):
         """
         Handles navigation backwards/forwards through pages, wrapping
@@ -1798,8 +1813,9 @@ class ClockAccessory(Systray.Accessory):
     A very basic, badly laid out clock.
     """
 
-    def size(self, max_size: Region, _: WindowManager) -> Size:
-        return Size(45, max_size.height)
+    def size(self, max_size: Region, window_manager: WindowManager) -> Size:
+        width = 45 * window_manager.dpi_scale_factor
+        return Size(width, max_size.height)
 
     def _draw(self, display: PicoGraphics, region: Region, theme: Theme):
         p = theme.padding

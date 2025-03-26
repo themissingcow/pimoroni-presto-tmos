@@ -4,6 +4,9 @@
 """
 Tests for Theme logic
 """
+from unittest import mock
+
+import pytest
 
 from tmos import OS, Region
 from tmos_ui import Theme, WindowManager
@@ -116,23 +119,23 @@ class Test_Theme_text_height:
             assert isinstance(height, int)
 
 
-class Test_Theme__is_full_res:
+class Test_Theme_dpi_scale_factor:
 
     def test_when_theme_constructed_then_is_not_set(self):
-        a_theme = Theme()
-        assert not hasattr(a_theme, "_is_full_res")
 
-    def test_when_setup_with_low_res_display_then_is_false(self):
         a_theme = Theme()
-        mock_display = PicoGraphics()
-        mock_display.get_bounds.return_value = (240, 240)
-        a_theme.setup(mock_display)
-        # pylint: disable=protected-access
+        assert a_theme.dpi_scale_factor is None
 
-    def test_when_setup_with_hight_res_display_then_is_false(self):
+    def test_when_setup_then_value_propagated(self):
+
         a_theme = Theme()
-        mock_display = PicoGraphics()
-        mock_display.get_bounds.return_value = (241, 241)
-        a_theme.setup(mock_display)
-        # pylint: disable=protected-access
-        assert a_theme._is_full_res is True
+        expected = 3
+        a_theme.setup(mock.Mock(), expected)
+        assert a_theme.dpi_scale_factor == expected
+
+    def test_when_set_then_AttributeError_raised(self):
+
+        a_theme = Theme()
+        with pytest.raises(AttributeError):
+            a_theme.dpi_scale_factor = 4
+
