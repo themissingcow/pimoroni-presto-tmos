@@ -14,6 +14,8 @@ v1.0.0-alpha.x
   `App.tasks`.
 - Added `WindowManager.dpi_scale_factor` to help write code that works
   with either setting of the `full_res` `Presto` kwarg.
+- `WindowManager` now lazily runs setup for pages that may need it, once
+  they are current.
 
 ## Bug Fixes
 

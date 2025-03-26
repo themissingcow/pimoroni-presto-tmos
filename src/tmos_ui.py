@@ -899,6 +899,12 @@ class Page:
     loop cycle.
     """
 
+    needs_setup: bool = True
+    """
+    Set to True if the page needs setting up in the next available run
+    loop cycle.
+    """
+
     _controls: [Control]
 
     def __init__(self) -> None:
@@ -1706,7 +1712,7 @@ class WindowManager:
 
         if self.__pages_need_setup:
             for page in self.__pages:
-                page.setup(self.content_region, self)
+                page.needs_setup = True
                 # We could make page set this in setup, but then
                 # everyone would need to call the base class method, and
                 # they're only going to forget...
@@ -1715,11 +1721,14 @@ class WindowManager:
                 page.needs_update = True
             self.__pages_need_setup = False
 
-        for page in self.__pages:
-            if not page.needs_update:
-                continue
-            page.needs_update = False
-            self.__page_tasks[page].enqueue()
+        if page := self.__current_page:
+            if page.needs_setup:
+                page.needs_setup = False
+                page.setup(self.content_region, self)
+                page.needs_update = True
+            if page.needs_update:
+                page.needs_update = False
+                self.__page_tasks[page].enqueue()
 
         if self.__current_page == self.__last_page:
             return
