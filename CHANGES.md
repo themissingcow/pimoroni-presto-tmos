@@ -9,6 +9,8 @@ v1.0.0-alpha.x
 - Adds support for firmware 0.0.8. As plasma is no longer used to manage
   the Presto LEDs, this removes the now redundant `glow_leds` and
   `glow_fps` kwargs from `OS.boot`.
+- Added the required `Theme.base_text_height` which determines the hight
+  of text without descenders.
 
 ## New Features
 
@@ -36,6 +38,9 @@ v1.0.0-alpha.x
 
 - Adds `Theme.secondary_background_pen` for use in empty areas of
   secondary UI elements (e.g. empty regions of the systray).
+- Improved estimation of text hight (see: `Theme.base_text_height`), and
+  consequently better centering of text within a region (e.g. button
+  titles).
 
 v1.0.0-alpha.4
 ==============

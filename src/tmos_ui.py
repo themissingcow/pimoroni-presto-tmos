@@ -148,6 +148,17 @@ class Theme:
     draw calls are relative to this size.
     """
 
+    base_text_height: int
+    """
+    The height of a line of text (in pixels), at the base size/scale.
+
+    This is the size of the actual letters (ignoring descenders). This
+    allows more accurate vertical alignment as base_line_height includes
+    the line spacing.
+
+    see: base_line_height
+    """
+
     base_line_height: int
     """
     The height of a line (in pixels) for text at the base size/scale.
@@ -237,6 +248,22 @@ class Theme:
         ratio = self.text_scale(rel_scale) / self.base_font_scale
         return int(round(self.base_line_height * ratio))
 
+    def text_height(self, rel_scale: float = 1) -> int:
+        """
+        Determines the character height of the themes text not including
+        descenders. This can be used to ensure multiple draw calls are
+        spaced appropriately.
+
+        This factors in the themes base_font_scale and a relative scale
+        if specified, using the same rounding logic as text_scale.
+
+        :param rel_scale: The scale of text to be drawn, relative to the
+          themes base_font_scale.
+        :return: The preferred line height in pixels, including spacing.
+        """
+        ratio = self.text_scale(rel_scale) / self.base_font_scale
+        return int(round(self.base_text_height * ratio))
+
     def measure_text(self, display: PicoGraphics, text: str, rel_scale: float = 1) -> (int, int):
         """
         Approximates the bounding box for the specified text, at a scale
@@ -260,7 +287,7 @@ class Theme:
             w = int(w)
         else:
             w = display.measure_text(text, self.text_scale(rel_scale))
-        h = self.line_spacing(rel_scale)
+        h = self.text_height(rel_scale)
         return w, h
 
     def clear_display(self, display: PicoGraphics, region: Region = None, set_fg_pen: bool = True):
@@ -467,6 +494,7 @@ class DefaultTheme(Theme):
     padding = 5
     font = "bitmap8"
     base_font_scale = 1
+    base_text_height = 8
     base_line_height = 10
     systray_height = 30
 
@@ -483,6 +511,7 @@ class DefaultTheme(Theme):
         if w > 240:
             self.padding *= 2
             self.base_font_scale *= 2
+            self.base_text_height *= 2
             self.base_line_height *= 2
             self.control_height *= 2
             self.systray_height *= 2
