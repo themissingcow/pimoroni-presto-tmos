@@ -11,9 +11,13 @@ v1.0.0-alpha.x
   `glow_fps` kwargs from `OS.boot`.
 - Added the required `Theme.base_text_height` which determines the hight
   of text without descenders.
+- `Theme.setup` must be called by derived classes prior to any custom
+  setup code to ensure base theme properties are initialized.
 
 ## New Features
 
+- Added `Theme._is_full_res` to allow theme drawing to adapt to display
+  resolution.
 - Added `WindowManager.remove_all_pages` to allow all registered pages
   to be removed.
 - Added the ability to show a page modally over the current page and

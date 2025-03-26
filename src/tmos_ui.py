@@ -136,7 +136,7 @@ class Theme:
     failure-related information.
     """
 
-    font: str
+    font: str = "bitmap8"
     """
     A PicoGraphics.set_font compatible font name. If the font name ends
     with "af" then the PicoVector library will be used.
@@ -190,6 +190,7 @@ class Theme:
 
     _use_vector_font_rendering: bool = False
     _vector: PicoVector = None
+    _is_full_res: bool
 
     def setup(self, display: PicoGraphics):
         """
@@ -202,8 +203,12 @@ class Theme:
         fonts, and other properties appropriately for the supplied
         display.
 
-        The base class implementation must be called.
+        The base class implementation must be called before any user
+        code.
         """
+        w, _ = display.get_bounds()
+        self._is_full_res = w > 240
+
         self._vector = self._create_picovector(display)
 
         self._use_vector_font_rendering = self.font.endswith(".af")
@@ -500,7 +505,8 @@ class DefaultTheme(Theme):
 
     def setup(self, display: PicoGraphics):
 
-        w, _ = display.get_bounds()
+        # This must be called first
+        super().setup(display)
 
         self.foreground_pen = display.create_pen(0, 0, 0)
         self.background_pen = display.create_pen(255, 255, 255)
@@ -508,15 +514,13 @@ class DefaultTheme(Theme):
         self.error_pen = display.create_pen(200, 0, 0)
         self.control_height = 3 * self.base_line_height
 
-        if w > 240:
+        if self._is_full_res:
             self.padding *= 2
             self.base_font_scale *= 2
             self.base_text_height *= 2
             self.base_line_height *= 2
             self.control_height *= 2
             self.systray_height *= 2
-
-        super().setup(display)
 
 
 class Control:

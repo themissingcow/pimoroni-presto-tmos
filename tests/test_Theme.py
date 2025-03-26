@@ -8,6 +8,8 @@ Tests for Theme logic
 from tmos import OS, Region
 from tmos_ui import Theme, WindowManager
 
+from picographics import PicoGraphics
+
 # pylint: disable=missing-class-docstring, missing-function-docstring
 # pylint: disable=invalid-name, redefined-outer-name
 
@@ -112,3 +114,25 @@ class Test_Theme_text_height:
             height = a_theme.text_height(rel)
             assert height == expected
             assert isinstance(height, int)
+
+
+class Test_Theme__is_full_res:
+
+    def test_when_theme_constructed_then_is_not_set(self):
+        a_theme = Theme()
+        assert not hasattr(a_theme, "_is_full_res")
+
+    def test_when_setup_with_low_res_display_then_is_false(self):
+        a_theme = Theme()
+        mock_display = PicoGraphics()
+        mock_display.get_bounds.return_value = (240, 240)
+        a_theme.setup(mock_display)
+        # pylint: disable=protected-access
+
+    def test_when_setup_with_hight_res_display_then_is_false(self):
+        a_theme = Theme()
+        mock_display = PicoGraphics()
+        mock_display.get_bounds.return_value = (241, 241)
+        a_theme.setup(mock_display)
+        # pylint: disable=protected-access
+        assert a_theme._is_full_res is True
