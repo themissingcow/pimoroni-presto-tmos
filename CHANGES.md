@@ -1,3 +1,12 @@
+v1.0.0-alpha.x
+==============
+
+## Improvements
+
+- Apps can now declare an ordered list of tasks that will be added to
+  the os run loop ahead of page update tasks when the app is active. See
+  `App.tasks`.
+
 v1.0.0-alpha.5
 ==============
 

@@ -6,12 +6,13 @@ The Missing "OS": App Switcher
 
 The app switch builds on the base OS/WindowManager to allow easy
 switching of smaller, independent apps. Each app has its own set of
-pages. A single app is current at any one time.
+pages (and tasks). A single app is current at any one time.
 
 The AppManager class manages the page list of a particular WindowManager
 instance.
 """
 
+from collections import namedtuple
 from picographics import PicoGraphics
 
 from tmos import Region, Size
@@ -23,6 +24,8 @@ class App:
     name: str = "Unnamed Application"
     description: str = ""
 
+    Task = namedtuple("Task", ("fn", "execution_frequency", "touch_forces_execution"))
+
     def pages(self) -> [Page]:
         """
         Retrieve a list of pages for the application.
@@ -31,6 +34,16 @@ class App:
           set of initialised pages across multiple calls to this method.
         """
         raise NotImplementedError("App classes must implement the pages method")
+
+    def tasks(self) -> [Task]:
+        """
+        An ordered list of additional tasks that should be run for the app.
+
+        These will be added to the os runtime when the app is made
+        current, and removed afterwards. The tasks will be ordered
+        before the any of the apps pages are updated.
+        """
+        return []
 
 
 class AppManagerAccessory(Systray.Accessory):
@@ -112,6 +125,7 @@ class AppManager:
 
     __apps: [App]
     __current_app: App | None = None
+    __current_app_tasks: [App.Task]
     __window_manager: WindowManager
 
     def __init__(
@@ -126,6 +140,7 @@ class AppManager:
         """
         self.__apps = []
         self.__current_app = None
+        self.__current_app_tasks = []
         self.__window_manager = window_manager
         if systray_position:
             self.__window_manager.add_systray_accessory(self.systray_accessory(), systray_position)
@@ -173,7 +188,7 @@ class AppManager:
         """
         return self.__current_app
 
-    def set_current_app(self, app: App | None):
+    def set_current_app(self, app: App):
         """
         Updates the active app, replacing the window manager's pages
         with those of the app. The first page of the app will be made
@@ -189,9 +204,21 @@ class AppManager:
             raise ValueError(f"{app.name} is not a registered app")
         if app is self.__current_app:
             return
-        self.__current_app = app
 
+        for task in self.__current_app_tasks:
+            self.__window_manager.os.remove_task(task)
         self.__window_manager.remove_all_pages()
+
+        self.__current_app = app
+        self.__current_app_tasks = [
+            self.__window_manager.os.add_task(
+                t.fn,
+                execution_frequency=t.execution_frequency,
+                touch_forces_execution=t.touch_forces_execution,
+            )
+            for t in app.tasks()
+        ]
+
         app_pages = app.pages()
         if not app_pages:
             raise RuntimeError(f"{app.name} provided no pages")
@@ -204,6 +231,9 @@ class AppManager:
         Opens a simple modal app switcher, that auto-closes when an app
         is selected.
         """
+
+        if not self.__apps:
+            raise RuntimeError("No apps registered")
 
         def select_app(app: App):
             self.__window_manager.clear_modal_page()
