@@ -1822,14 +1822,19 @@ class ClockAccessory(Systray.Accessory):
     """
     A very basic, badly laid out clock.
     """
+    __os: OS = None
 
     def size(self, max_size: Region, window_manager: WindowManager) -> Size:
         width = 45 * window_manager.dpi_scale_factor
         return Size(width, max_size.height)
 
+
+    def setup(self, region: Region, window_manager: "WindowManager"):
+        self.__os = window_manager.os
+
     def _draw(self, display: PicoGraphics, region: Region, theme: Theme):
         p = theme.padding
-        _, month, day, hours, mins, secs, __, ___ = time.localtime()
+        _, month, day, hours, mins, secs, __, ___ = self.__os.localtime()
         text_height = theme.text_height()
         display.set_pen(theme.foreground_pen)
         theme.text(

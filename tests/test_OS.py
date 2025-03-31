@@ -782,3 +782,29 @@ class Test_OS_update_display:
 
         assert os_instance.presto.touch.state
         os_instance.presto.touch.state = False
+
+
+class Test_OS_utc_offset:
+
+    def test_when_constructed_then_defaults_to_zero_offset(self):
+
+        os_instance = OS()
+        assert os_instance.utc_offset == 0
+
+    def test_when_localtime_called_then_utc_offset_is_applied_as_hours_difference(self, monkeypatch):
+
+        seconds = 1743369690
+
+        def mock_time():
+            return seconds
+
+        monkeypatch.setattr(time, "time", mock_time)
+
+        os_instance = OS()
+
+        for offset, expected in [
+            (o, time.gmtime(seconds + (3600 * o))) for o in (-5, 0, 2.5, 10)
+        ]:
+            os_instance.utc_offset = offset
+            assert os_instance.localtime() == expected
+

@@ -250,6 +250,8 @@ class OS:
     touch: FT6236
     buzzer: Buzzer
 
+    utc_offset: int = 0
+
     #
     # Backlight / Glow LED management
     #
@@ -450,6 +452,16 @@ class OS:
         Stops the runloop, the run function will then return.
         """
         self.__running = False
+
+    def localtime(self, secs: float = None):
+        """
+        Returns the equivalent of time.localtime factoring in the
+        configured utc_offset in hours.
+        """
+        secs = time.time() if secs is None else secs
+        if self.utc_offset == 0:
+            return time.gmtime(secs)
+        return time.gmtime(secs + (self.utc_offset * 3600))
 
     def update_display(self, region: Region | None = None):
         """

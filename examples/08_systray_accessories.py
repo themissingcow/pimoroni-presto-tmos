@@ -3,7 +3,6 @@
 An demonstration of systray accessories.
 """
 import asyncio
-import time
 
 from presto import PicoGraphics
 
@@ -21,6 +20,8 @@ from tmos_ui import (
 )
 
 os = OS(layers=1)
+# Timezone/daylight savings need to be manually managed at this point
+os.utc_offset = 1
 # Show the systray by default
 wm = WindowManager(os, systray_visible=True)
 
@@ -72,9 +73,10 @@ class ClockAccessory(Systray.Accessory):
 
         p = theme.padding
 
+        # os.localtime reflected the OS's configured utc_offset
+        _, month, day, hours, mins, secs, __, ___ = os.localtime()
         # Make sure we draw within the specified region, which might not
         # be the whole screen, or have an origin at 0, 0.
-        _, month, day, hours, mins, secs, __, ___ = time.localtime()
         line_height = theme.line_spacing()
         y = (region.height // 2) - line_height
         display.set_pen(theme.foreground_pen)

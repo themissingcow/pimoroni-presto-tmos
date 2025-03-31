@@ -7,6 +7,12 @@ v1.0.0-alpha.x
   `Theme.dpi_scale_factor`, to more usefully allow drawing code to adapt
   to the `full_res=True` `Presto` kwarg.
 
+## New Features
+
+- Added `OS.localtime` that factors in any `OS.utc_offset` (in hours).
+  Time zone / daylight savings still needs to be managed manually
+  though.
+
 ## Improvements
 
 - Apps can now declare an ordered list of tasks that will be added to
