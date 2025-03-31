@@ -1822,12 +1822,17 @@ class ClockAccessory(Systray.Accessory):
     """
     A very basic, badly laid out clock.
     """
+
     __os: OS = None
+    __show_seconds: bool
+
+    def __init__(self, show_seconds=True) -> None:
+        super().__init__()
+        self.__show_seconds = show_seconds
 
     def size(self, max_size: Region, window_manager: WindowManager) -> Size:
-        width = 45 * window_manager.dpi_scale_factor
+        width = (45 if self.__show_seconds else 30) * window_manager.dpi_scale_factor
         return Size(width, max_size.height)
-
 
     def setup(self, region: Region, window_manager: "WindowManager"):
         self.__os = window_manager.os
@@ -1839,7 +1844,11 @@ class ClockAccessory(Systray.Accessory):
         display.set_pen(theme.foreground_pen)
         theme.text(
             display,
-            f"{hours:02d}:{mins:02d}:{secs:02d}",
+            (
+                f"{hours:02d}:{mins:02d}:{secs:02d}"
+                if self.__show_seconds
+                else f"{hours:02d}:{mins:02d}"
+            ),
             *to_screen(region, p, region.height // 2 - text_height - p // 4),
         )
         theme.text(

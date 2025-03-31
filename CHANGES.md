@@ -25,6 +25,8 @@ v1.0.0-alpha.x
   with either setting of the `full_res` `Presto` kwarg.
 - `WindowManager` now lazily runs setup for pages that may need it, once
   they are current.
+- Added a `show_seconds` kwarg to `ClockAccessory` that controls whether
+  seconds are visible.
 
 ## Bug Fixes
 
