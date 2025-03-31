@@ -103,6 +103,12 @@ class Test_AppManager_apps:
         an_app_manager.add_app(app_b)
         assert an_app_manager.apps() == (app_a, app_b)
 
+    def test_when_App_Added_then_setup_called_with_window_manager(self, a_wm, an_app_manager):
+
+        mock_app = mock.create_autospec(App, instance=True)
+        an_app_manager.add_app(mock_app)
+        mock_app.setup.assert_called_once_with(a_wm)
+
     def test_when_added_with_make_current_not_specified_then_app_is_not_made_current(
         self, an_app_manager, an_app
     ):

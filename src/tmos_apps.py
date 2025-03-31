@@ -26,6 +26,17 @@ class App:
 
     Task = namedtuple("Task", ("fn", "execution_frequency", "touch_forces_execution"))
 
+    def setup(self, window_manager: WindowManager):
+        """
+        Called once when the App is added to the AppManager, to allow
+        the app to configure itself based on properties of the window
+        manager (or os).
+
+        :param window_manager: The window manager that will be used for
+        display.
+        """
+        pass
+
     def pages(self) -> [Page]:
         """
         Retrieve a list of pages for the application.
@@ -161,12 +172,15 @@ class AppManager:
         """
         Adds an app to the AppManger's list of apps.
 
+        The app's setup function will be called at this point.
+
         :param  The app to add.
         :param make_current: Whether the window manager's page list
           should be immediately updated to those of this app (see:
           set_current_app)
         """
         self.__apps.append(app)
+        app.setup(self.__window_manager)
         if make_current:
             self.set_current_app(app)
         self.__window_manager.os.post_message(

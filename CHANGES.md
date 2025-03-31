@@ -12,6 +12,9 @@ v1.0.0-alpha.x
 - Added `OS.localtime` that factors in any `OS.utc_offset` (in hours).
   Time zone / daylight savings still needs to be managed manually
   though.
+- Added `App.setup` hook, called with the window manager when an `App`
+  instance is added to the `AppManager`, to allow wm/os specific
+  configuration.
 
 ## Improvements
 
