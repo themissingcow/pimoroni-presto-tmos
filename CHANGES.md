@@ -38,6 +38,9 @@ v1.0.0-alpha.x
 
 ## Bug Fixes
 
+- Themes now share a `PicoVector` instance to avoid issues with with
+  broken display when multiple themes are instantiated. Theme local
+  transforms are used however, held in `Theme._vector_transform`.
 - `ClockAccessory` now measures the theme text instead of using
   hard-coded sizes.
 - Fixed a bug where setting an already active task to active would cause

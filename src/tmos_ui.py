@@ -117,6 +117,9 @@ class Theme:
     If the 'pen' attributes (e.g. foreground_pen) are a three element
     tuple, they will be converted from color into a display pen during
     setup.
+
+    Note: All themes share a PicoVector instance (Theme._vector), but
+    have their own transform, which will be set when the theme is setup.
     """
 
     foreground_pen: int
@@ -218,6 +221,7 @@ class Theme:
 
     _use_vector_font_rendering: bool = False
     _vector: PicoVector = None
+    _vector_transform = None
 
     __dpi_scale_factor: int = None
 
@@ -238,12 +242,17 @@ class Theme:
         theme properties.
         """
         if self._setup_done:
+            # Ensure themes can have their own transforms
+            self._vector.set_transform(self._vector_transform)
             return
+
         self._setup_done = True
 
         self.__dpi_scale_factor = dpi_scale_factor
 
-        self._vector = self._create_picovector(display)
+        self._ensure_picovector(display)
+        self._vector_transform = picovector.Transform()
+        self._vector.set_transform(self._vector_transform)
 
         self._use_vector_font_rendering = self.font.endswith(".af")
         if self._use_vector_font_rendering:
@@ -262,17 +271,16 @@ class Theme:
         for attr in self._dpi_scaled_sizes:
             setattr(self, attr, getattr(self, attr) * dpi_scale_factor)
 
-    def _create_picovector(self, display: PicoGraphics) -> PicoVector:
-        # https://github.com/pimoroni/presto/issues/61
-        # pylint: disable=attribute-defined-outsite-init
-        self.__vector_transform = picovector.Transform()
+    @staticmethod
+    def _ensure_picovector(display: PicoGraphics) -> PicoVector:
+        if Theme._vector:
+            return
         vector = PicoVector(display)
-        vector.set_transform(self.__vector_transform)
         vector.set_antialiasing(picovector.ANTIALIAS_BEST)
         # The default line height is a little large, this seems
         # to be an integer percentage value so works across sizes.
         vector.set_font_line_height(85)
-        return vector
+        Theme._vector = vector
 
     @property
     def dpi_scale_factor(self) -> int:

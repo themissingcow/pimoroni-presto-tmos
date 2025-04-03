@@ -6,11 +6,13 @@ Tests for Theme logic
 """
 from unittest import mock
 
+import picographics
 import pytest
 
 from tmos import OS, Region
 from tmos_ui import DefaultTheme, Theme, WindowManager
 
+import picovector
 from picographics import PicoGraphics
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
@@ -205,3 +207,64 @@ class Test_Theme_setup:
         assert a_theme.base_font_scale == expected_base_font_scale
         a_theme.setup(mock_picographics, dpi_scale_factor)
         assert a_theme.base_font_scale == expected_base_font_scale
+
+    def test_when_multiple_themes_setup_then_share_picovector_instance(self):
+        # pylint: disable=protected-access
+        Theme._vector = None
+
+        class ThemeA(DefaultTheme):
+            pass
+
+        class ThemeB(DefaultTheme):
+            pass
+
+        theme_a = ThemeA()
+        theme_b = ThemeB()
+        assert Theme._vector is None
+        mock_picographics = PicoGraphics()
+        theme_a.setup(mock_picographics, 1)
+        vector = theme_a._vector
+        assert vector is not None
+        theme_b.setup(mock_picographics, 1)
+        assert theme_b._vector is vector
+
+    def test_when_multiple_thems_setup_then_shared_picovector_set_with_theme_transform(
+        self, monkeypatch
+    ):
+        # pylint: disable=protected-access
+
+        class Transform:
+            pass
+
+        monkeypatch.setattr(picovector, "Transform", Transform)
+        picovector.PicoVector.reset_mock()
+
+        theme_a = DefaultTheme()
+        theme_b = DefaultTheme()
+
+        mock_picographics = PicoGraphics()
+        theme_a.setup(mock_picographics, 1)
+        picovector.PicoVector.return_value.set_transform.assert_called_with(
+            theme_a._vector_transform
+        )
+        # Check second setup still sets transform
+        picovector.PicoVector.reset_mock()
+        theme_a.setup(mock_picographics, 1)
+        picovector.PicoVector.return_value.set_transform.assert_called_with(
+            theme_a._vector_transform
+        )
+
+        picovector.PicoVector.reset_mock()
+        theme_b.setup(mock_picographics, 1)
+        picovector.PicoVector.return_value.set_transform.assert_called_with(
+            theme_b._vector_transform
+        )
+        # Check second setup still sets transform
+        picovector.PicoVector.reset_mock()
+        theme_b.setup(mock_picographics, 1)
+        picovector.PicoVector.return_value.set_transform.assert_called_with(
+            theme_b._vector_transform
+        )
+
+        assert theme_a._vector_transform is not theme_b._vector_transform
+
