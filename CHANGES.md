@@ -38,6 +38,8 @@ v1.0.0-alpha.x
 
 ## Bug Fixes
 
+- `ClockAccessory` now measures the theme text instead of using
+  hard-coded sizes.
 - Fixed a bug where setting an already active task to active would cause
   it to be enqueued.
 - Fixed the `ClockAccessory` width when `full_res=True` was used.

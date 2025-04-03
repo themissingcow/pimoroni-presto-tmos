@@ -1864,8 +1864,10 @@ class ClockAccessory(Systray.Accessory):
         self.__show_seconds = show_seconds
 
     def size(self, max_size: Region, window_manager: WindowManager) -> Size:
-        width = (45 if self.__show_seconds else 30) * window_manager.dpi_scale_factor
-        return Size(width, max_size.height)
+        placeholder_text = "XX:XX:XX" if self.__show_seconds else "XX:XX"
+        width, _ = window_manager.theme.measure_text(window_manager.display, placeholder_text)
+        padding = window_manager.theme.padding
+        return Size(width + padding + padding, max_size.height)
 
     def setup(self, region: Region, window_manager: "WindowManager"):
         self.__os = window_manager.os
