@@ -113,6 +113,10 @@ class Theme:
 
     Themes support bitmap and vector fonts. If the font name ends with
     ".af" then it will be rendered using PicoVector.
+
+    If the 'pen' attributes (e.g. foreground_pen) are a three element
+    tuple, they will be converted from color into a display pen during
+    setup.
     """
 
     foreground_pen: int
@@ -188,6 +192,30 @@ class Theme:
     The relative scale of text used in the systray.
     """
 
+    _pens = ("foreground_pen", "background_pen", "secondary_background_pen", "error_pen")
+    """
+    The names of attributes that hold pens. If any of these attributes
+    are set to a 3 tuple (vs a pen), they will be auto-coverted to a
+    display pen during setup.
+    """
+
+    _dpi_scaled_sizes = (
+        "padding",
+        "base_font_scale",
+        "base_text_height",
+        "base_line_height",
+        "control_height",
+        "systray_height",
+    )
+    """
+    The names of attributes that hold sizes that should be scaled by
+    dpi_scale_factor during setup, to ensure they are the same physical
+    size on screen regardless of the setting of the Presto full_res
+    kwarg.
+    """
+
+    _setup_done: bool = False
+
     _use_vector_font_rendering: bool = False
     _vector: PicoVector = None
 
@@ -200,13 +228,19 @@ class Theme:
         This will be called by the WindowManager, and does not need to
         be called in user code in most common use cases.
 
-        This should be implemented by a theme to  initialise pens,
+        This can be implemented by a theme to initialise pens,
         fonts, and other properties appropriately for the supplied
         display.
 
         The base class implementation must be called before any user
-        code.
+        code. It creates the vector graphics display, converts any color
+        tuples to pens, and applies the dpi_scale_factor to relevant
+        theme properties.
         """
+        if self._setup_done:
+            return
+        self._setup_done = True
+
         self.__dpi_scale_factor = dpi_scale_factor
 
         self._vector = self._create_picovector(display)
@@ -216,6 +250,17 @@ class Theme:
             self._vector.set_font(self.font, self.base_font_scale)
         else:
             display.set_font(self.font)
+
+        # Convert any pens specified as rgb tuples to display pens
+        for attr in self._pens:
+            value = getattr(self, attr)
+            if isinstance(value, tuple):
+                setattr(self, attr, display.create_pen(*value))
+
+        # Scale for dpi factor
+
+        for attr in self._dpi_scaled_sizes:
+            setattr(self, attr, getattr(self, attr) * dpi_scale_factor)
 
     def _create_picovector(self, display: PicoGraphics) -> PicoVector:
         # https://github.com/pimoroni/presto/issues/61
@@ -529,24 +574,12 @@ class DefaultTheme(Theme):
     base_text_height = 8
     base_line_height = 10
     systray_height = 30
+    control_height = 30
 
-    def setup(self, display: PicoGraphics, dpi_scale_factor: int):
-
-        # This must be called first
-        super().setup(display, dpi_scale_factor)
-
-        self.foreground_pen = display.create_pen(0, 0, 0)
-        self.background_pen = display.create_pen(255, 255, 255)
-        self.secondary_background_pen = display.create_pen(200, 200, 200)
-        self.error_pen = display.create_pen(200, 0, 0)
-        self.control_height = 3 * self.base_line_height
-
-        self.padding *= dpi_scale_factor
-        self.base_font_scale *= dpi_scale_factor
-        self.base_text_height *= dpi_scale_factor
-        self.base_line_height *= dpi_scale_factor
-        self.control_height *= dpi_scale_factor
-        self.systray_height *= dpi_scale_factor
+    foreground_pen = (0, 0, 0)
+    background_pen = (255, 255, 255)
+    secondary_background_pen = (200, 200, 200)
+    error_pen = (200, 0, 0)
 
 
 class Control:
