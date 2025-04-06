@@ -13,6 +13,7 @@ v1.0.0-alpha.x
 
 ## New Features
 
+- Added `WindowManager.set_theme` to change the current theme.
 - Added `OS.localtime` that factors in any `OS.utc_offset` (in hours).
   Time zone / daylight savings still needs to be managed manually
   though.

@@ -18,7 +18,7 @@ from picographics import PicoGraphics
 import picovector
 from picovector import PicoVector
 
-from tmos import OS, Region, Size, MSG_WARNING, MSG_SEVERITY_NAMES
+from tmos import OS, Region, Size, MSG_WARNING, MSG_DEBUG, MSG_SEVERITY_NAMES
 
 
 __all__ = [
@@ -1347,7 +1347,7 @@ class WindowManager:
     """
 
     display: PicoGraphics
-    theme: Theme
+    __theme: Theme = None
 
     system_message_level = MSG_WARNING
 
@@ -1391,8 +1391,7 @@ class WindowManager:
         self.display = os_.display
         w, _ = self.display.get_bounds()
         self.__dpi_scale_factor = w // 240
-        self.theme = theme or DefaultTheme()
-        self.theme.setup(self.display, self.__dpi_scale_factor)
+        self.set_theme(theme or DefaultTheme())
 
         self.__create_systray()
         self.set_systray_visible(systray_visible)
@@ -1500,9 +1499,33 @@ class WindowManager:
         """
         return self.__systray_page.accessories()
 
+    @property
+    def theme(self) -> Theme:
+        """
+        The currently active theme used for drawing the display.
+        """
+        return self.__theme
+
+    def set_theme(self, theme: Theme):
+        """
+        Changes the active theme.
+
+        This will cause the current page/systray to be re-setup at the
+        next tick. This may cause pages and other UI elements such as
+        the systray to change their layout.
+
+        :param theme: The new theme to use for drawing the display.
+        """
+        if theme == self.__theme:
+            return
+        self.os.post_message(f"Setting theme to {theme}", MSG_DEBUG)
+        theme.setup(self.display, self.dpi_scale_factor)
+        self.__theme = theme
+        self.__update_regions()
+
     def __update_regions(self):
         content_region, systray_region = self.__calculate_regions(
-            self.display, self.__systray_visible, self.systray_position, self.theme
+            self.display, self.__systray_visible, self.systray_position, self.__theme
         )
         self.__set_content_region(content_region)
         self.__set_systray_region(systray_region)
@@ -1540,7 +1563,7 @@ class WindowManager:
             if s >= self.system_message_level
         ]
         full_screen = Region(0, 0, *self.display.get_bounds())
-        self.theme.draw_strings(self.display, display_messages, full_screen)
+        self.__theme.draw_strings(self.display, display_messages, full_screen)
         self.update_display()
 
     def add_page(self, page: Page, make_current: bool = False):

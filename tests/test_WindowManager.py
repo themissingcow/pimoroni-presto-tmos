@@ -41,7 +41,6 @@ class Test_WindowManager_init:
         wm = WindowManager(os_instance, theme=mock_theme)
         mock_theme.setup.assert_called_once_with(wm.display, 2)
 
-
     def test_when_created_then_content_region_matches_display_size(self):
 
         os_instance = OS()
@@ -427,6 +426,20 @@ class Test_WindowManager_modal_pages:
 
     def test_when_no_modal_page_then_clear_is_a_noop(self, a_wm, a_mock_page):
         a_wm.clear_modal_page()
+
+
+class Test_WindowManager_set_theme:
+
+    def test_when_theme_set_then_setup_is_called_with_display_and_dpi_scale_factor(self):
+
+        mock_theme = mock.create_autospec(Theme, instance=True)
+
+        os_instance = OS()
+        os_instance.display.get_bounds.return_value = (240, 240)
+        wm = WindowManager(os_instance)
+        os_instance.display.get_bounds.return_value = (480, 480)
+        wm = WindowManager(os_instance, theme=mock_theme)
+        mock_theme.setup.assert_called_once_with(wm.display, 2)
 
 
 @pytest.fixture
