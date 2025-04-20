@@ -20,6 +20,7 @@ v1.0.0-alpha.x
 - Added `App.setup` hook, called with the window manager when an `App`
   instance is added to the `AppManager`, to allow wm/os specific
   configuration.
+- Added `ClassicTheme` with simple styling and rounded corners.
 
 ## Improvements
 
