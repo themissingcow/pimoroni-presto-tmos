@@ -122,6 +122,11 @@ class Theme:
     have their own transform, which will be set when the theme is setup.
     """
 
+    EDGE_L = 1
+    EDGE_R = 2
+    EDGE_T = 4
+    EDGE_B = 8
+
     foreground_pen: int
     """
     The preferred pen to use for text and other primary content.
@@ -399,9 +404,12 @@ class Theme:
         :param text: The string to render.
         """
         if self._use_vector_font_rendering:
+            if "wordwrap" in kwargs:
+                kwargs["max_width"] = kwargs["wordwrap"]
+                del kwargs["wordwrap"]
             self._vector.set_font_size(self.text_scale(rel_scale))
             y += int(self.line_spacing(rel_scale) * 0.75)
-            self._vector.text(text, x, y)
+            self._vector.text(text, x, y, **kwargs)
         else:
             display.text(text, x, y, *args, scale=self.text_scale(rel_scale), **kwargs)
 
@@ -472,7 +480,9 @@ class Theme:
             if offset > region.height:
                 break
 
-    def draw_button_frame(self, display: PicoGraphics, region: Region, is_pressed: bool):
+    def draw_button_frame(
+        self, display: PicoGraphics, region: Region, is_pressed: bool, adjoined: int
+    ):
         """
         Draws the frame/background for an on-screen "button"
 
@@ -495,6 +505,7 @@ class Theme:
         is_pressed: bool,
         title: str,
         title_rel_scale: int,
+        adjoined: int,
     ):
         """
         Draws the frame/background for an on-screen "button"
@@ -509,12 +520,13 @@ class Theme:
         display.set_pen(self.foreground_pen if is_pressed else self.background_pen)
         self.centered_text(display, region, title, rel_scale=title_rel_scale)
 
-    def draw_systray(self, display: PicoGraphics, region: Region):
+    def draw_systray(self, display: PicoGraphics, region: Region, adjoined: int):
         """
         Draws the systray region underneath any other controls.
 
         :param display: The display to draw on.
         :param region: The bounds of the systray region.
+        :param adjoined: Edges the systray is adjoined to.
         """
         display.set_pen(self.secondary_background_pen)
         display.rectangle(*region)
@@ -528,14 +540,14 @@ class Theme:
         )
 
     def draw_systray_page_button_frame(
-        self, display: PicoGraphics, region: Region, is_pressed: bool
+        self, display: PicoGraphics, region: Region, is_pressed: bool, adjoined: int
     ):
         """
         Draws the button frame for a systray page selector.
 
         see: draw_button_frame
         """
-        self.draw_button_frame(display, region, is_pressed)
+        self.draw_button_frame(display, region, is_pressed, adjoined)
 
     def draw_systray_page_button_title(
         self,
@@ -544,13 +556,16 @@ class Theme:
         is_pressed: bool,
         title: str,
         title_rel_scale: int,
+        adjoined: int,
     ):
         """
         Draws the button title for a systray page selector.
 
         see: draw_button_title
         """
-        self.draw_button_title(display, region, is_pressed, title, title_rel_scale=title_rel_scale)
+        self.draw_button_title(
+            display, region, is_pressed, title, title_rel_scale=title_rel_scale, adjoined=adjoined
+        )
 
     def draw_app_switcher_button(self, display: PicoGraphics, region: Region, is_pressed: bool):
         """
@@ -598,7 +613,7 @@ class Control:
     global state. This isn't compatible with the multi-page model, where
     only one of many pages will be visible at any given time.
 
-    We also introduce a more html style even model to controls.
+    We also introduce a more html style event model to controls.
 
     Controls usually have one or more on_* attributes, that can be set
     to a callable, that should be invoked upon specific state
@@ -606,6 +621,12 @@ class Control:
 
     Unless otherwise noted, it is allowed to modify a control's state in
     an event callback.
+    """
+
+    adjoined: int = 0
+    """
+    Whether the control is connected to any other buttons on either
+    edges. See Theme.EDGE_*.
     """
 
     def process_touch_state(self, touch):
@@ -671,10 +692,11 @@ class _Button(Control):
     A callable, invoked when a users touch leaves the button when down.
     """
 
-    def __init__(self, region: Region, title: str = "", title_rel_scale=1) -> None:
+    def __init__(self, region: Region, title: str = "", title_rel_scale=1, adjoined=0) -> None:
         self.region = region
         self.title = title
         self.title_rel_scale = title_rel_scale
+        self.adjoined = adjoined
 
     @property
     def is_down(self) -> bool:
@@ -700,10 +722,15 @@ class _Button(Control):
 
     def draw(self, display: PicoGraphics, theme: Theme):
 
-        theme.draw_button_frame(display, self.region, self.__is_down)
+        theme.draw_button_frame(display, self.region, self.__is_down, self.adjoined)
         if self.title:
             theme.draw_button_title(
-                display, self.region, self.__is_down, self.title, self.title_rel_scale
+                display,
+                self.region,
+                self.__is_down,
+                self.title,
+                self.title_rel_scale,
+                self.adjoined,
             )
 
 
@@ -803,6 +830,7 @@ class RadioButton(Control):
         current_index: int = 0,
         title_rel_scale: float = 1.0,
         control_class: LatchingButton = LatchingButton,
+        adjoined: int = 0,
     ) -> None:
         """
         Constructs a new RadioButton.
@@ -824,12 +852,25 @@ class RadioButton(Control):
         self._controls = []
         self.control_class = control_class
 
+        self.adjoined = adjoined
+
+        last_option_index = len(options) - 1
+
         option_width = region.width // len(options)
         for i, option in enumerate(options):
             ctl_region = Region(
                 region.x + (i * option_width), region.y, option_width, region.height
             )
             control = self._create_option_control(i, ctl_region, option, title_rel_scale)
+            if i == 0:
+                control.adjoined = Theme.EDGE_R
+            elif i == last_option_index:
+                control.adjoined = Theme.EDGE_L
+            else:
+                control.adjoined = Theme.EDGE_L | Theme.EDGE_R
+            # Include whether the radio itself is adjoined
+            control.adjoined = control.adjoined | self.adjoined
+
             self._controls.append(control)
 
         self.set_current_index(current_index)
@@ -904,10 +945,15 @@ class SystrayPageButton(LatchingButton):
     """
 
     def draw(self, display: PicoGraphics, theme: Theme):
-        theme.draw_systray_page_button_frame(display, self.region, self.is_down)
+        theme.draw_systray_page_button_frame(display, self.region, self.is_down, self.adjoined)
         if self.title:
             theme.draw_systray_page_button_title(
-                display, self.region, self.is_down, self.title, theme.systray_text_rel_scale
+                display,
+                self.region,
+                self.is_down,
+                self.title,
+                theme.systray_text_rel_scale,
+                self.adjoined,
             )
 
 
@@ -1071,6 +1117,8 @@ class Systray(Page):
     """
 
     title = "Systray"
+
+    adjoined: int = 0
 
     class Accessory(Page):
         """
@@ -1236,7 +1284,7 @@ class Systray(Page):
         for control in self._controls:
             control.process_touch_state(touch)
 
-        theme.draw_systray(display, region)
+        theme.draw_systray(display, region, self.adjoined)
 
         for accessory, acc_region in zip(
             self.__leading_accessories, self.__leading_accessory_regions
@@ -1324,6 +1372,7 @@ class Systray(Page):
             titles,
             current_index=current_page_index,
             control_class=SystrayPageButton,
+            adjoined=self.adjoined,
         )
         self.__page_radio_button.on_current_index_changed = page_index_changed
 
@@ -1837,6 +1886,9 @@ class WindowManager:
             return
 
         self.__systray_task.active = self.__systray_visible
+        self.__systray_page.adjoined = (
+            Theme.EDGE_B if self.__systray_position == "top" else Theme.EDGE_T
+        )
 
         if self.__systray_needs_setup:
             if self.__systray_visible:
