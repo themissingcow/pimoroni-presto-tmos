@@ -6,18 +6,28 @@ v1.0.0-alpha.x
 - Renamed and refactored `Theme._is_full_res` to
   `Theme.dpi_scale_factor`, to more usefully allow drawing code to adapt
   to the `full_res=True` `Presto` kwarg.
+- `Theme` subclasses that re-implement `setup` need to call the base
+  class implementation and respect `Theme._setup_done`. Note that custom
+  setup implementation may no longer be required, see the Improvements
+  section below.
 
 ## New Features
 
+- Added `WindowManager.set_theme` to change the current theme.
 - Added `OS.localtime` that factors in any `OS.utc_offset` (in hours).
   Time zone / daylight savings still needs to be managed manually
   though.
 - Added `App.setup` hook, called with the window manager when an `App`
   instance is added to the `AppManager`, to allow wm/os specific
   configuration.
+- Added `ClassicTheme` with simple styling and rounded corners.
 
 ## Improvements
 
+- The base `Theme.setup` implementation now automatically makes pens
+  when the theme sets default values as RGB tuples, and scales
+  DPI sensitive attributes. This hopefully negates most of the needs to
+  re-implement `setup` in a custom theme.
 - Apps can now declare an ordered list of tasks that will be added to
   the os run loop ahead of page update tasks when the app is active. See
   `App.tasks`.
@@ -30,6 +40,11 @@ v1.0.0-alpha.x
 
 ## Bug Fixes
 
+- Themes now share a `PicoVector` instance to avoid issues with with
+  broken display when multiple themes are instantiated. Theme local
+  transforms are used however, held in `Theme._vector_transform`.
+- `ClockAccessory` now measures the theme text instead of using
+  hard-coded sizes.
 - Fixed a bug where setting an already active task to active would cause
   it to be enqueued.
 - Fixed the `ClockAccessory` width when `full_res=True` was used.

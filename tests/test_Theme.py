@@ -6,11 +6,13 @@ Tests for Theme logic
 """
 from unittest import mock
 
+import picographics
 import pytest
 
 from tmos import OS, Region
-from tmos_ui import Theme, WindowManager
+from tmos_ui import DefaultTheme, Theme, WindowManager
 
+import picovector
 from picographics import PicoGraphics
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
@@ -123,19 +125,146 @@ class Test_Theme_dpi_scale_factor:
 
     def test_when_theme_constructed_then_is_not_set(self):
 
-        a_theme = Theme()
+        a_theme = DefaultTheme()
         assert a_theme.dpi_scale_factor is None
 
     def test_when_setup_then_value_propagated(self):
 
-        a_theme = Theme()
+        a_theme = DefaultTheme()
         expected = 3
         a_theme.setup(mock.Mock(), expected)
         assert a_theme.dpi_scale_factor == expected
 
     def test_when_set_then_AttributeError_raised(self):
 
-        a_theme = Theme()
+        a_theme = DefaultTheme()
         with pytest.raises(AttributeError):
             a_theme.dpi_scale_factor = 4
+
+
+class Test_Theme_setup:
+
+    def test_when_setup_with_pen_color_tuples_then_converted_to_pens(self):
+
+        pens = [
+            ("foreground_pen", (1, 2, 3)),
+            ("background_pen", (4, 5, 6)),
+            ("secondary_background_pen", (7, 8, 9)),
+            ("error_pen", (10, 11, 12)),
+        ]
+        assert [p[0] for p in pens] == list(DefaultTheme._pens)
+
+        mock_picographics = PicoGraphics()
+
+        class MockPen:
+            def __init__(self, *args):
+                self.args = args
+
+        mock_picographics.create_pen.side_effect = MockPen
+
+        a_theme = DefaultTheme()
+        for pen, vals in pens:
+            setattr(a_theme, pen, vals)
+
+        a_theme.setup(mock_picographics, 1)
+
+        for pen, vals in pens:
+            assert getattr(a_theme, pen).args == vals
+
+    def test_when_setup_then_scaled_attributes_updated(self):
+
+        scaled = [
+            ("padding", 1),
+            ("base_font_scale", 3),
+            ("base_text_height", 5),
+            ("base_line_height", 7),
+            ("control_height", 9),
+            ("systray_height", 11),
+        ]
+
+        dpi_scale_factor = 2
+
+        mock_picographics = PicoGraphics()
+        a_theme = DefaultTheme()
+        for prop, val in scaled:
+            setattr(a_theme, prop, val)
+
+        a_theme.setup(mock_picographics, dpi_scale_factor)
+
+        for prop, val in scaled:
+            assert getattr(a_theme, prop) == (val * dpi_scale_factor)
+
+    def test_when_called_twice_then_noop(self):
+
+        dpi_scale_factor = 2
+        base_font_scale = 11
+        expected_base_font_scale = base_font_scale * dpi_scale_factor
+
+        mock_picographics = PicoGraphics()
+        a_theme = DefaultTheme()
+        a_theme.base_font_scale = base_font_scale
+        a_theme.setup(mock_picographics, dpi_scale_factor)
+        assert a_theme.base_font_scale == expected_base_font_scale
+        a_theme.setup(mock_picographics, dpi_scale_factor)
+        assert a_theme.base_font_scale == expected_base_font_scale
+
+    def test_when_multiple_themes_setup_then_share_picovector_instance(self):
+        # pylint: disable=protected-access
+        Theme._vector = None
+
+        class ThemeA(DefaultTheme):
+            pass
+
+        class ThemeB(DefaultTheme):
+            pass
+
+        theme_a = ThemeA()
+        theme_b = ThemeB()
+        assert Theme._vector is None
+        mock_picographics = PicoGraphics()
+        theme_a.setup(mock_picographics, 1)
+        vector = theme_a._vector
+        assert vector is not None
+        theme_b.setup(mock_picographics, 1)
+        assert theme_b._vector is vector
+
+    def test_when_multiple_thems_setup_then_shared_picovector_set_with_theme_transform(
+        self, monkeypatch
+    ):
+        # pylint: disable=protected-access
+
+        class Transform:
+            pass
+
+        monkeypatch.setattr(picovector, "Transform", Transform)
+        picovector.PicoVector.reset_mock()
+
+        theme_a = DefaultTheme()
+        theme_b = DefaultTheme()
+
+        mock_picographics = PicoGraphics()
+        theme_a.setup(mock_picographics, 1)
+        picovector.PicoVector.return_value.set_transform.assert_called_with(
+            theme_a._vector_transform
+        )
+        # Check second setup still sets transform
+        picovector.PicoVector.reset_mock()
+        theme_a.setup(mock_picographics, 1)
+        picovector.PicoVector.return_value.set_transform.assert_called_with(
+            theme_a._vector_transform
+        )
+
+        picovector.PicoVector.reset_mock()
+        theme_b.setup(mock_picographics, 1)
+        picovector.PicoVector.return_value.set_transform.assert_called_with(
+            theme_b._vector_transform
+        )
+        # Check second setup still sets transform
+        picovector.PicoVector.reset_mock()
+        theme_b.setup(mock_picographics, 1)
+        picovector.PicoVector.return_value.set_transform.assert_called_with(
+            theme_b._vector_transform
+        )
+
+        assert theme_a._vector_transform is not theme_b._vector_transform
 

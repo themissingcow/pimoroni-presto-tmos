@@ -18,7 +18,7 @@ from picographics import PicoGraphics
 import picovector
 from picovector import PicoVector
 
-from tmos import OS, Region, Size, MSG_WARNING, MSG_SEVERITY_NAMES
+from tmos import OS, Region, Size, MSG_WARNING, MSG_DEBUG, MSG_SEVERITY_NAMES
 
 
 __all__ = [
@@ -113,7 +113,19 @@ class Theme:
 
     Themes support bitmap and vector fonts. If the font name ends with
     ".af" then it will be rendered using PicoVector.
+
+    If the 'pen' attributes (e.g. foreground_pen) are a three element
+    tuple, they will be converted from color into a display pen during
+    setup.
+
+    Note: All themes share a PicoVector instance (Theme._vector), but
+    have their own transform, which will be set when the theme is setup.
     """
+
+    EDGE_L = 1
+    EDGE_R = 2
+    EDGE_T = 4
+    EDGE_B = 8
 
     foreground_pen: int
     """
@@ -188,8 +200,33 @@ class Theme:
     The relative scale of text used in the systray.
     """
 
+    _pens = ("foreground_pen", "background_pen", "secondary_background_pen", "error_pen")
+    """
+    The names of attributes that hold pens. If any of these attributes
+    are set to a 3 tuple (vs a pen), they will be auto-coverted to a
+    display pen during setup.
+    """
+
+    _dpi_scaled_sizes = (
+        "padding",
+        "base_font_scale",
+        "base_text_height",
+        "base_line_height",
+        "control_height",
+        "systray_height",
+    )
+    """
+    The names of attributes that hold sizes that should be scaled by
+    dpi_scale_factor during setup, to ensure they are the same physical
+    size on screen regardless of the setting of the Presto full_res
+    kwarg.
+    """
+
+    _setup_done: bool = False
+
     _use_vector_font_rendering: bool = False
     _vector: PicoVector = None
+    _vector_transform = None
 
     __dpi_scale_factor: int = None
 
@@ -200,16 +237,27 @@ class Theme:
         This will be called by the WindowManager, and does not need to
         be called in user code in most common use cases.
 
-        This should be implemented by a theme to  initialise pens,
+        This can be implemented by a theme to initialise pens,
         fonts, and other properties appropriately for the supplied
         display.
 
         The base class implementation must be called before any user
-        code.
+        code. It creates the vector graphics display, converts any color
+        tuples to pens, and applies the dpi_scale_factor to relevant
+        theme properties.
         """
+        if self._setup_done:
+            # Ensure themes can have their own transforms
+            self._vector.set_transform(self._vector_transform)
+            return
+
+        self._setup_done = True
+
         self.__dpi_scale_factor = dpi_scale_factor
 
-        self._vector = self._create_picovector(display)
+        self._ensure_picovector(display)
+        self._vector_transform = picovector.Transform()
+        self._vector.set_transform(self._vector_transform)
 
         self._use_vector_font_rendering = self.font.endswith(".af")
         if self._use_vector_font_rendering:
@@ -217,17 +265,27 @@ class Theme:
         else:
             display.set_font(self.font)
 
-    def _create_picovector(self, display: PicoGraphics) -> PicoVector:
-        # https://github.com/pimoroni/presto/issues/61
-        # pylint: disable=attribute-defined-outsite-init
-        self.__vector_transform = picovector.Transform()
+        # Convert any pens specified as rgb tuples to display pens
+        for attr in self._pens:
+            value = getattr(self, attr)
+            if isinstance(value, tuple):
+                setattr(self, attr, display.create_pen(*value))
+
+        # Scale for dpi factor
+
+        for attr in self._dpi_scaled_sizes:
+            setattr(self, attr, getattr(self, attr) * dpi_scale_factor)
+
+    @staticmethod
+    def _ensure_picovector(display: PicoGraphics) -> PicoVector:
+        if Theme._vector:
+            return
         vector = PicoVector(display)
-        vector.set_transform(self.__vector_transform)
         vector.set_antialiasing(picovector.ANTIALIAS_BEST)
         # The default line height is a little large, this seems
         # to be an integer percentage value so works across sizes.
         vector.set_font_line_height(85)
-        return vector
+        Theme._vector = vector
 
     @property
     def dpi_scale_factor(self) -> int:
@@ -346,9 +404,12 @@ class Theme:
         :param text: The string to render.
         """
         if self._use_vector_font_rendering:
+            if "wordwrap" in kwargs:
+                kwargs["max_width"] = kwargs["wordwrap"]
+                del kwargs["wordwrap"]
             self._vector.set_font_size(self.text_scale(rel_scale))
             y += int(self.line_spacing(rel_scale) * 0.75)
-            self._vector.text(text, x, y)
+            self._vector.text(text, x, y, **kwargs)
         else:
             display.text(text, x, y, *args, scale=self.text_scale(rel_scale), **kwargs)
 
@@ -419,7 +480,9 @@ class Theme:
             if offset > region.height:
                 break
 
-    def draw_button_frame(self, display: PicoGraphics, region: Region, is_pressed: bool):
+    def draw_button_frame(
+        self, display: PicoGraphics, region: Region, is_pressed: bool, adjoined: int
+    ):
         """
         Draws the frame/background for an on-screen "button"
 
@@ -442,6 +505,7 @@ class Theme:
         is_pressed: bool,
         title: str,
         title_rel_scale: int,
+        adjoined: int,
     ):
         """
         Draws the frame/background for an on-screen "button"
@@ -456,12 +520,13 @@ class Theme:
         display.set_pen(self.foreground_pen if is_pressed else self.background_pen)
         self.centered_text(display, region, title, rel_scale=title_rel_scale)
 
-    def draw_systray(self, display: PicoGraphics, region: Region):
+    def draw_systray(self, display: PicoGraphics, region: Region, adjoined: int):
         """
         Draws the systray region underneath any other controls.
 
         :param display: The display to draw on.
         :param region: The bounds of the systray region.
+        :param adjoined: Edges the systray is adjoined to.
         """
         display.set_pen(self.secondary_background_pen)
         display.rectangle(*region)
@@ -475,14 +540,14 @@ class Theme:
         )
 
     def draw_systray_page_button_frame(
-        self, display: PicoGraphics, region: Region, is_pressed: bool
+        self, display: PicoGraphics, region: Region, is_pressed: bool, adjoined: int
     ):
         """
         Draws the button frame for a systray page selector.
 
         see: draw_button_frame
         """
-        self.draw_button_frame(display, region, is_pressed)
+        self.draw_button_frame(display, region, is_pressed, adjoined)
 
     def draw_systray_page_button_title(
         self,
@@ -491,13 +556,16 @@ class Theme:
         is_pressed: bool,
         title: str,
         title_rel_scale: int,
+        adjoined: int,
     ):
         """
         Draws the button title for a systray page selector.
 
         see: draw_button_title
         """
-        self.draw_button_title(display, region, is_pressed, title, title_rel_scale=title_rel_scale)
+        self.draw_button_title(
+            display, region, is_pressed, title, title_rel_scale=title_rel_scale, adjoined=adjoined
+        )
 
     def draw_app_switcher_button(self, display: PicoGraphics, region: Region, is_pressed: bool):
         """
@@ -529,24 +597,12 @@ class DefaultTheme(Theme):
     base_text_height = 8
     base_line_height = 10
     systray_height = 30
+    control_height = 30
 
-    def setup(self, display: PicoGraphics, dpi_scale_factor: int):
-
-        # This must be called first
-        super().setup(display, dpi_scale_factor)
-
-        self.foreground_pen = display.create_pen(0, 0, 0)
-        self.background_pen = display.create_pen(255, 255, 255)
-        self.secondary_background_pen = display.create_pen(200, 200, 200)
-        self.error_pen = display.create_pen(200, 0, 0)
-        self.control_height = 3 * self.base_line_height
-
-        self.padding *= dpi_scale_factor
-        self.base_font_scale *= dpi_scale_factor
-        self.base_text_height *= dpi_scale_factor
-        self.base_line_height *= dpi_scale_factor
-        self.control_height *= dpi_scale_factor
-        self.systray_height *= dpi_scale_factor
+    foreground_pen = (0, 0, 0)
+    background_pen = (255, 255, 255)
+    secondary_background_pen = (200, 200, 200)
+    error_pen = (200, 0, 0)
 
 
 class Control:
@@ -557,7 +613,7 @@ class Control:
     global state. This isn't compatible with the multi-page model, where
     only one of many pages will be visible at any given time.
 
-    We also introduce a more html style even model to controls.
+    We also introduce a more html style event model to controls.
 
     Controls usually have one or more on_* attributes, that can be set
     to a callable, that should be invoked upon specific state
@@ -565,6 +621,12 @@ class Control:
 
     Unless otherwise noted, it is allowed to modify a control's state in
     an event callback.
+    """
+
+    adjoined: int = 0
+    """
+    Whether the control is connected to any other buttons on either
+    edges. See Theme.EDGE_*.
     """
 
     def process_touch_state(self, touch):
@@ -630,10 +692,11 @@ class _Button(Control):
     A callable, invoked when a users touch leaves the button when down.
     """
 
-    def __init__(self, region: Region, title: str = "", title_rel_scale=1) -> None:
+    def __init__(self, region: Region, title: str = "", title_rel_scale=1, adjoined=0) -> None:
         self.region = region
         self.title = title
         self.title_rel_scale = title_rel_scale
+        self.adjoined = adjoined
 
     @property
     def is_down(self) -> bool:
@@ -659,10 +722,15 @@ class _Button(Control):
 
     def draw(self, display: PicoGraphics, theme: Theme):
 
-        theme.draw_button_frame(display, self.region, self.__is_down)
+        theme.draw_button_frame(display, self.region, self.__is_down, self.adjoined)
         if self.title:
             theme.draw_button_title(
-                display, self.region, self.__is_down, self.title, self.title_rel_scale
+                display,
+                self.region,
+                self.__is_down,
+                self.title,
+                self.title_rel_scale,
+                self.adjoined,
             )
 
 
@@ -762,6 +830,7 @@ class RadioButton(Control):
         current_index: int = 0,
         title_rel_scale: float = 1.0,
         control_class: LatchingButton = LatchingButton,
+        adjoined: int = 0,
     ) -> None:
         """
         Constructs a new RadioButton.
@@ -783,12 +852,25 @@ class RadioButton(Control):
         self._controls = []
         self.control_class = control_class
 
+        self.adjoined = adjoined
+
+        last_option_index = len(options) - 1
+
         option_width = region.width // len(options)
         for i, option in enumerate(options):
             ctl_region = Region(
                 region.x + (i * option_width), region.y, option_width, region.height
             )
             control = self._create_option_control(i, ctl_region, option, title_rel_scale)
+            if i == 0:
+                control.adjoined = Theme.EDGE_R
+            elif i == last_option_index:
+                control.adjoined = Theme.EDGE_L
+            else:
+                control.adjoined = Theme.EDGE_L | Theme.EDGE_R
+            # Include whether the radio itself is adjoined
+            control.adjoined = control.adjoined | self.adjoined
+
             self._controls.append(control)
 
         self.set_current_index(current_index)
@@ -863,10 +945,15 @@ class SystrayPageButton(LatchingButton):
     """
 
     def draw(self, display: PicoGraphics, theme: Theme):
-        theme.draw_systray_page_button_frame(display, self.region, self.is_down)
+        theme.draw_systray_page_button_frame(display, self.region, self.is_down, self.adjoined)
         if self.title:
             theme.draw_systray_page_button_title(
-                display, self.region, self.is_down, self.title, theme.systray_text_rel_scale
+                display,
+                self.region,
+                self.is_down,
+                self.title,
+                theme.systray_text_rel_scale,
+                self.adjoined,
             )
 
 
@@ -1030,6 +1117,8 @@ class Systray(Page):
     """
 
     title = "Systray"
+
+    adjoined: int = 0
 
     class Accessory(Page):
         """
@@ -1195,7 +1284,7 @@ class Systray(Page):
         for control in self._controls:
             control.process_touch_state(touch)
 
-        theme.draw_systray(display, region)
+        theme.draw_systray(display, region, self.adjoined)
 
         for accessory, acc_region in zip(
             self.__leading_accessories, self.__leading_accessory_regions
@@ -1283,6 +1372,7 @@ class Systray(Page):
             titles,
             current_index=current_page_index,
             control_class=SystrayPageButton,
+            adjoined=self.adjoined,
         )
         self.__page_radio_button.on_current_index_changed = page_index_changed
 
@@ -1306,7 +1396,7 @@ class WindowManager:
     """
 
     display: PicoGraphics
-    theme: Theme
+    __theme: Theme = None
 
     system_message_level = MSG_WARNING
 
@@ -1350,8 +1440,7 @@ class WindowManager:
         self.display = os_.display
         w, _ = self.display.get_bounds()
         self.__dpi_scale_factor = w // 240
-        self.theme = theme or DefaultTheme()
-        self.theme.setup(self.display, self.__dpi_scale_factor)
+        self.set_theme(theme or DefaultTheme())
 
         self.__create_systray()
         self.set_systray_visible(systray_visible)
@@ -1459,9 +1548,33 @@ class WindowManager:
         """
         return self.__systray_page.accessories()
 
+    @property
+    def theme(self) -> Theme:
+        """
+        The currently active theme used for drawing the display.
+        """
+        return self.__theme
+
+    def set_theme(self, theme: Theme):
+        """
+        Changes the active theme.
+
+        This will cause the current page/systray to be re-setup at the
+        next tick. This may cause pages and other UI elements such as
+        the systray to change their layout.
+
+        :param theme: The new theme to use for drawing the display.
+        """
+        if theme == self.__theme:
+            return
+        self.os.post_message(f"Setting theme to {theme}", MSG_DEBUG)
+        theme.setup(self.display, self.dpi_scale_factor)
+        self.__theme = theme
+        self.__update_regions()
+
     def __update_regions(self):
         content_region, systray_region = self.__calculate_regions(
-            self.display, self.__systray_visible, self.systray_position, self.theme
+            self.display, self.__systray_visible, self.systray_position, self.__theme
         )
         self.__set_content_region(content_region)
         self.__set_systray_region(systray_region)
@@ -1499,7 +1612,7 @@ class WindowManager:
             if s >= self.system_message_level
         ]
         full_screen = Region(0, 0, *self.display.get_bounds())
-        self.theme.draw_strings(self.display, display_messages, full_screen)
+        self.__theme.draw_strings(self.display, display_messages, full_screen)
         self.update_display()
 
     def add_page(self, page: Page, make_current: bool = False):
@@ -1773,6 +1886,9 @@ class WindowManager:
             return
 
         self.__systray_task.active = self.__systray_visible
+        self.__systray_page.adjoined = (
+            Theme.EDGE_B if self.__systray_position == "top" else Theme.EDGE_T
+        )
 
         if self.__systray_needs_setup:
             if self.__systray_visible:
@@ -1831,8 +1947,10 @@ class ClockAccessory(Systray.Accessory):
         self.__show_seconds = show_seconds
 
     def size(self, max_size: Region, window_manager: WindowManager) -> Size:
-        width = (45 if self.__show_seconds else 30) * window_manager.dpi_scale_factor
-        return Size(width, max_size.height)
+        placeholder_text = "XX:XX:XX" if self.__show_seconds else "XX:XX"
+        width, _ = window_manager.theme.measure_text(window_manager.display, placeholder_text)
+        padding = window_manager.theme.padding
+        return Size(width + padding + padding, max_size.height)
 
     def setup(self, region: Region, window_manager: "WindowManager"):
         self.__os = window_manager.os
